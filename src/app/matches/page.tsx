@@ -50,6 +50,7 @@ export default async function MatchesPage({
           },
         },
       },
+      contract: { select: { id: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -67,6 +68,7 @@ export default async function MatchesPage({
       status: m.status,
       flags: m.flags,
       breakdown: (m.breakdown as MatchRow["breakdown"]) ?? null,
+      contractId: m.contract?.id ?? null,
       createdAt: m.createdAt.toISOString(),
       otherPet: {
         id: otherPet.id,

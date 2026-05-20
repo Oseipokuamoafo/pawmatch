@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { calculateAge } from "@/lib/utils/age";
 import { useToast } from "@/components/toast/ToastProvider";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
+import { ContractActions } from "./ContractActions";
 import type { MatchStatus, Sex, Species } from "@/generated/prisma";
 
 export interface MatchRow {
@@ -21,6 +22,7 @@ export interface MatchRow {
     proximity: number;
     preferences: number;
   } | null;
+  contractId: string | null;
   createdAt: string;
   /** The pet on the OTHER side from the current viewer */
   otherPet: {
@@ -208,6 +210,13 @@ export function MatchRequestCard({ match, side }: MatchRequestCardProps) {
           )}
         </div>
       </div>
+
+      {/* Contract draft + download (accepted matches only) */}
+      {match.status === "ACCEPTED" && (
+        <div className="border-t border-sand px-5 pt-4 pb-1 sm:px-6">
+          <ContractActions matchId={match.id} contractId={match.contractId} />
+        </div>
+      )}
 
       {/* Breakdown accordion */}
       <div className="border-t border-sand">
