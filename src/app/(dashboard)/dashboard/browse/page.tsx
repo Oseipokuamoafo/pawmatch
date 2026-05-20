@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { scoreMatch, type ScoringPet } from "@/lib/scoring";
+import { scoreMatch, type PetWithRelations } from "@/lib/scoring";
 import { BrowseCard } from "@/components/browse/BrowseCard";
 
 type SearchParams = Promise<{ for?: string; species?: string }>;
@@ -99,9 +99,23 @@ export default async function BrowsePage({
     take: 60,
   });
 
+  const myLocation =
+    myPet.owner?.locationLat != null && myPet.owner?.locationLng != null
+      ? { lat: myPet.owner.locationLat, lng: myPet.owner.locationLng }
+      : undefined;
+
   const scored = candidates
     .map((c) => {
-      const result = scoreMatch(myPet as ScoringPet, c as unknown as ScoringPet);
+      const candidateLocation =
+        c.owner?.locationLat != null && c.owner?.locationLng != null
+          ? { lat: c.owner.locationLat, lng: c.owner.locationLng }
+          : undefined;
+      const result = scoreMatch(
+        myPet as PetWithRelations,
+        c as unknown as PetWithRelations,
+        myLocation,
+        candidateLocation
+      );
       return { candidate: c, result };
     })
     .sort((a, b) => b.result.score - a.result.score);
@@ -155,9 +169,9 @@ export default async function BrowsePage({
                 ownerVerified: Boolean(candidate.owner?.verificationBadge),
               }}
               score={result.score}
-              capped={result.capped}
+              capped={result.flags.length > 0}
               flags={result.flags}
-              notes={result.notes}
+              notes={[]}
             />
           ))}
         </div>

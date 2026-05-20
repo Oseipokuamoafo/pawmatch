@@ -97,7 +97,15 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = scoreMatch(petA, petB);
+  const aLoc =
+    petA.owner?.locationLat != null && petA.owner?.locationLng != null
+      ? { lat: petA.owner.locationLat, lng: petA.owner.locationLng }
+      : undefined;
+  const bLoc =
+    petB.owner?.locationLat != null && petB.owner?.locationLng != null
+      ? { lat: petB.owner.locationLat, lng: petB.owner.locationLng }
+      : undefined;
+  const result = scoreMatch(petA, petB, aLoc, bLoc);
 
   const match = await prisma.match.create({
     data: {

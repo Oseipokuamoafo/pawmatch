@@ -3,121 +3,267 @@ import type {
   Pet,
   PetHealth,
   PetTrait,
-  User,
 } from "@/generated/prisma";
 
-import { calculateCOI } from "./coi";
+import { haversineDistance } from "./geo";
 
-/* ─── Public API ─────────────────────────────────────────────────────── */
+/* ─── Public types ───────────────────────────────────────────────────── */
 
-export interface ScoringPet extends Pet {
+export type PetWithRelations = Pet & {
   traits: PetTrait[];
   healthRecords: PetHealth[];
   breedingGoals: BreedingGoal[];
-  owner?: Pick<User, "id" | "locationLat" | "locationLng"> | null;
+};
+
+export type AutoFlag =
+  | "SHARED_RECESSIVE_GENE"
+  | "HIGH_COI"
+  | "PET_UNDERAGE"
+  | "UNVERIFIED_HEALTH";
+
+export interface MatchBreakdown {
+  traits: number; // 0–35
+  health: number; // 0–30
+  diversity: number; // 0–20
+  proximity: number; // 0–10
+  preferences: number; // 0–5
 }
 
-export interface ScoreResult {
-  score: number;
-  capped: boolean;
-  /** Auto-flag strings that hard-cap the score to 30 */
+export interface MatchResult {
+  score: number; // 0–100 (or capped at HARD_CAP when flagged)
   flags: string[];
-  /** Soft notes that don't cap the score but worth surfacing */
-  notes: string[];
-  /** Component breakdown for tooltips / debugging */
-  breakdown: {
-    traits: number; // 0–35
-    health: number; // 0–30
-    diversity: number; // 0–20
-    proximity: number; // 0–10
-    preferences: number; // 0–5
-    coi: number; // percentage
-  };
+  breakdown: MatchBreakdown;
 }
 
-/** Hard cap applied when any auto-flag fires. */
+/* ─── Tunables ───────────────────────────────────────────────────────── */
+
+/** Score ceiling when any auto-flag fires. */
 export const HARD_CAP = 30;
-
-/** Min breeding age in months. Dogs/cats — 12 mo is the consensus floor. */
-export const MIN_BREEDING_AGE_MONTHS = 12;
-
-/** COI above this percentage is dangerous. */
+/** COI percentage above which we hard-flag the pairing. */
 export const COI_DANGER_THRESHOLD = 12.5;
 
+/** Minimum breeding age in months, per sex. Mirrors Breed seed defaults. */
+export function minBreedingAgeMonths(sex: "MALE" | "FEMALE"): number {
+  return sex === "MALE" ? 14 : 18;
+}
+
+/* ─── Breed-group lookup (static — kept in sync with prisma/seed.ts) ── */
+
+const BREED_GROUPS: Record<string, string> = {
+  // Dogs
+  "Golden Retriever": "Sporting",
+  "Labrador Retriever": "Sporting",
+  Labrador: "Sporting",
+  "French Bulldog": "Non-Sporting",
+  Poodle: "Non-Sporting",
+  Bulldog: "Non-Sporting",
+  "German Shepherd": "Herding",
+  "Border Collie": "Herding",
+  Beagle: "Hound",
+  Dachshund: "Hound",
+  Rottweiler: "Working",
+  "Siberian Husky": "Working",
+  "Doberman Pinscher": "Working",
+  Doberman: "Working",
+  "Yorkshire Terrier": "Toy",
+  "Shih Tzu": "Toy",
+  "Cavalier King Charles Spaniel": "Toy",
+  "Cavalier King Charles": "Toy",
+  // Cats
+  Persian: "Longhair",
+  "Maine Coon": "Longhair",
+  Ragdoll: "Longhair",
+  Siamese: "Shorthair",
+  Bengal: "Shorthair",
+  "British Shorthair": "Shorthair",
+  Sphynx: "Shorthair",
+  "Scottish Fold": "Shorthair",
+};
+
+function breedsCompatible(a: string, b: string): boolean {
+  if (a === b) return true;
+  const groupA = BREED_GROUPS[a];
+  const groupB = BREED_GROUPS[b];
+  return Boolean(groupA && groupB && groupA === groupB);
+}
+
+/* ─── Public API ─────────────────────────────────────────────────────── */
+
 /**
- * Score two pets against each other from `a`'s perspective.
+ * Score two pets against each other from petA's perspective.
  *
- * Per CLAUDE.md: 35% traits, 30% health/genetic, 20% diversity (COI delta),
- * 10% proximity, 5% owner preferences. Auto-flags hard-cap score at 30.
+ * Weighting per CLAUDE.md:
+ *   - 35  traits      (BreedingGoal.desiredTraits vs candidate PetTrait)
+ *   - 30  health      (DNA record, shared recessives, verified records)
+ *   - 20  diversity   (candidate coiEstimate vs petA's maxCOI)
+ *   - 10  proximity   (Haversine between owner locations)
+ *   -  5  preferences (petA's preferredBreeds contains petB's breed)
+ *
+ * Any auto-flag (SHARED_RECESSIVE_GENE, HIGH_COI, PET_UNDERAGE,
+ * UNVERIFIED_HEALTH) caps the final score at HARD_CAP=30.
+ *
+ * Owner locations are passed in explicitly so the helper stays pure
+ * and easy to unit-test; callers extract `{ lat, lng }` from their
+ * Prisma `pet.owner` includes.
  */
-export function scoreMatch(a: ScoringPet, b: ScoringPet): ScoreResult {
-  const traits = traitCompatibility(a, b);
-  const healthRaw = healthSafety(a, b);
-  const coi = calculateCOI(a.id, b.id);
-  const diversity = diversityScore(coi);
-  const proximity = proximityScore(a, b);
-  const preferences = ownerPreferenceScore(a, b);
-
+export function scoreMatch(
+  petA: PetWithRelations,
+  petB: PetWithRelations,
+  ownerALocation?: { lat: number; lng: number },
+  ownerBLocation?: { lat: number; lng: number }
+): MatchResult {
   const flags: string[] = [];
-  const notes: string[] = [];
 
-  // ── Hard auto-flags ────────────────────────────────────────────────
-  const sharedRecessive = findSharedRecessive(a, b);
-  if (sharedRecessive) {
-    flags.push(`Shared recessive: ${sharedRecessive}`);
+  // ── 1. Traits (0–35) ────────────────────────────────────────────────
+  const desired = getDesiredTraits(petA);
+  let traitScore = 0;
+  if (desired.length > 0) {
+    const candidateBag = petB.traits
+      .map((t) => `${t.traitName} ${t.traitValue}`.toLowerCase())
+      .join(" | ");
+    let matched = 0;
+    for (const want of desired) {
+      if (candidateBag.includes(want.toLowerCase())) matched++;
+    }
+    traitScore = Math.min(35, matched * 5);
   }
-  if (coi > COI_DANGER_THRESHOLD) {
-    flags.push(`COI ${coi.toFixed(1)}% exceeds 12.5% threshold`);
-  }
-  if (
-    ageInMonths(a.dateOfBirth) < MIN_BREEDING_AGE_MONTHS ||
-    ageInMonths(b.dateOfBirth) < MIN_BREEDING_AGE_MONTHS
-  ) {
-    flags.push("Pet under minimum breeding age (12 months)");
-  }
-  if (
-    a.healthRecords.length === 0 ||
-    !a.healthRecords.some((h) => h.isVerified)
-  ) {
-    flags.push("Unverified health records on your pet");
-  }
-  if (
-    b.healthRecords.length === 0 ||
-    !b.healthRecords.some((h) => h.isVerified)
-  ) {
-    flags.push("Unverified health records on candidate");
+  if (breedsCompatible(petA.breed, petB.breed)) {
+    traitScore = Math.min(35, traitScore + 5);
   }
 
-  // ── Soft notes ─────────────────────────────────────────────────────
-  if (a.species !== b.species) notes.push("Cross-species pairing");
-  if (a.sex === b.sex) notes.push("Same-sex pairing");
+  // ── 2. Health & genetic safety (0–30) ───────────────────────────────
+  let healthScore = 30;
+  const petBHasDna = petB.healthRecords.some((h) => h.type === "DNA");
+  if (!petBHasDna) healthScore -= 10;
 
-  // ── Aggregate ──────────────────────────────────────────────────────
-  const baseScore =
-    traits + healthRaw + diversity + proximity + preferences;
-  const score = flags.length > 0 ? Math.min(HARD_CAP, baseScore) : baseScore;
+  if (sharesRecessiveGene(petA.traits, petB.traits)) {
+    flags.push("SHARED_RECESSIVE_GENE");
+  }
+
+  const petBRecords = petB.healthRecords;
+  if (petBRecords.length > 0 && petBRecords.every((r) => !r.isVerified)) {
+    healthScore -= 5;
+  }
+  healthScore = clamp(healthScore, 0, 30);
+
+  // ── 3. Genetic diversity / COI (0–20) ───────────────────────────────
+  const candidateCOI = readCoiEstimate(petB.traits);
+  const maxCOI = petA.breedingGoals[0]?.maxCOI ?? null;
+  let diversityScore = 10; // neutral default when COI data missing
+
+  if (candidateCOI != null) {
+    if (candidateCOI > COI_DANGER_THRESHOLD) {
+      diversityScore = 0;
+      flags.push("HIGH_COI");
+    } else if (maxCOI != null) {
+      if (candidateCOI <= maxCOI) diversityScore = 20;
+      else if (candidateCOI <= maxCOI + 3) diversityScore = 12;
+      else if (candidateCOI <= maxCOI + 6) diversityScore = 6;
+      else {
+        diversityScore = 0;
+        flags.push("HIGH_COI");
+      }
+    } else {
+      // No threshold preference declared — give partial credit if COI looks healthy.
+      if (candidateCOI <= 6) diversityScore = 20;
+      else if (candidateCOI <= 9) diversityScore = 12;
+      else if (candidateCOI <= COI_DANGER_THRESHOLD) diversityScore = 6;
+    }
+  }
+
+  // ── 4. Proximity (0–10) ─────────────────────────────────────────────
+  let proximityScore = 2; // fallback when locations unknown
+  if (
+    ownerALocation &&
+    ownerBLocation &&
+    Number.isFinite(ownerALocation.lat) &&
+    Number.isFinite(ownerBLocation.lat)
+  ) {
+    const km = haversineDistance(
+      ownerALocation.lat,
+      ownerALocation.lng,
+      ownerBLocation.lat,
+      ownerBLocation.lng
+    );
+    if (km < 25) proximityScore = 10;
+    else if (km < 100) proximityScore = 7;
+    else if (km < 300) proximityScore = 4;
+    else proximityScore = 2;
+  }
+
+  // ── 5. Owner preferences (0–5) ──────────────────────────────────────
+  const preferredBreeds = petA.breedingGoals[0]?.preferredBreeds ?? [];
+  const preferencesScore =
+    preferredBreeds.length > 0 &&
+    preferredBreeds.some((b) => b.toLowerCase() === petB.breed.toLowerCase())
+      ? 5
+      : 0;
+
+  // ── Auto-flags that aren't tied to a specific component ─────────────
+  const ageA = ageInMonths(petA.dateOfBirth);
+  const ageB = ageInMonths(petB.dateOfBirth);
+  if (
+    ageA < minBreedingAgeMonths(petA.sex) ||
+    ageB < minBreedingAgeMonths(petB.sex)
+  ) {
+    flags.push("PET_UNDERAGE");
+  }
+
+  const noVerifiedAnywhere =
+    !petA.healthRecords.some((r) => r.isVerified) ||
+    !petB.healthRecords.some((r) => r.isVerified);
+  if (noVerifiedAnywhere) flags.push("UNVERIFIED_HEALTH");
+
+  // ── Aggregate ───────────────────────────────────────────────────────
+  const breakdown: MatchBreakdown = {
+    traits: traitScore,
+    health: healthScore,
+    diversity: diversityScore,
+    proximity: proximityScore,
+    preferences: preferencesScore,
+  };
+
+  const raw =
+    traitScore + healthScore + diversityScore + proximityScore + preferencesScore;
+  const score = flags.length > 0 ? Math.min(HARD_CAP, raw) : raw;
 
   return {
     score: Math.round(score),
-    capped: flags.length > 0 && baseScore > HARD_CAP,
     flags,
-    notes,
-    breakdown: {
-      traits,
-      health: healthRaw,
-      diversity,
-      proximity,
-      preferences,
-      coi,
-    },
+    breakdown,
   };
 }
 
-/* ─── Component scores ───────────────────────────────────────────────── */
+/**
+ * Batch helper — score `pet` against every candidate and return them
+ * sorted descending by score. Stable ordering across equal scores.
+ */
+export function batchScoreMatches(
+  pet: PetWithRelations,
+  candidates: Array<{
+    pet: PetWithRelations;
+    ownerLocation?: { lat: number; lng: number };
+  }>,
+  petOwnerLocation?: { lat: number; lng: number }
+): Array<{
+  pet: PetWithRelations;
+  result: MatchResult;
+}> {
+  const scored = candidates.map((c) => ({
+    pet: c.pet,
+    result: scoreMatch(pet, c.pet, petOwnerLocation, c.ownerLocation),
+  }));
+  // Decorate-sort-undecorate so equal scores keep input order.
+  return scored
+    .map((s, i) => ({ ...s, i }))
+    .sort((a, b) => b.result.score - a.result.score || a.i - b.i)
+    .map(({ i: _ignore, ...rest }) => rest);
+}
 
-/** 0–35: how well candidate matches owner's desired traits. */
-function traitCompatibility(a: ScoringPet, b: ScoringPet): number {
-  const desired = a.breedingGoals
+/* ─── Internals ──────────────────────────────────────────────────────── */
+
+function getDesiredTraits(pet: PetWithRelations): string[] {
+  return pet.breedingGoals
     .flatMap((g) =>
       Array.isArray(g.desiredTraits)
         ? (g.desiredTraits as unknown[]).filter(
@@ -125,81 +271,67 @@ function traitCompatibility(a: ScoringPet, b: ScoringPet): number {
           )
         : []
     )
-    .map((s) => s.toLowerCase());
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
-  if (desired.length === 0) {
-    // No preferences declared — give middle credit so a candidate isn't
-    // unfairly penalized for the user not filling in goals.
-    return 18;
+/**
+ * Detect a shared recessive-gene marker between two pet trait sets.
+ *
+ * Convention (set by the DNA import path): health-marker traits are stored
+ * as `{ traitName: "<Marker name> (health)", traitValue: "<status>" }`.
+ * A pair is flagged when both pets carry the SAME marker name with a
+ * status that is not "clear" / "normal" / "unknown".
+ *
+ * Also matches a handful of well-known shorthand keys (HUU, DM, PRCD,
+ * MDR1, CEA, PRA) that may appear inside trait names so legacy / hand-
+ * entered data still triggers.
+ */
+function sharesRecessiveGene(aTraits: PetTrait[], bTraits: PetTrait[]): boolean {
+  const aMarkers = collectRecessiveMarkers(aTraits);
+  const bMarkers = collectRecessiveMarkers(bTraits);
+  for (const m of aMarkers) {
+    if (bMarkers.has(m)) return true;
   }
+  return false;
+}
 
-  const candidateTraits = b.traits.map((t) =>
-    `${t.traitName} ${t.traitValue}`.toLowerCase()
-  );
+const SHORTHAND_KEYS = ["huu", "dm", "prcd", "mdr1", "cea", "pra"] as const;
 
-  let hits = 0;
-  for (const want of desired) {
-    if (candidateTraits.some((c) => c.includes(want))) hits++;
+function collectRecessiveMarkers(traits: PetTrait[]): Set<string> {
+  const out = new Set<string>();
+  for (const t of traits) {
+    const name = t.traitName.toLowerCase();
+    const value = t.traitValue.toLowerCase().trim();
+    const isHealth = name.includes("(health)") || /recessive/.test(name);
+    const isCarrier = !/^(clear|normal|unknown|absent)\b/.test(value);
+
+    if (isHealth && isCarrier) {
+      // Normalize "Hyperuricosuria (HUU) (health)" → "hyperuricosuria (huu)"
+      out.add(name.replace(/\s*\(health\)\s*$/, "").trim());
+    }
+    // Catch shorthand keys mentioned anywhere in the trait name
+    for (const k of SHORTHAND_KEYS) {
+      if (name.includes(k) && isCarrier) out.add(k);
+    }
   }
-  const ratio = hits / desired.length;
-  return Math.round(ratio * 35);
+  return out;
 }
 
-/** 0–30: health verification + clean recessive record. */
-function healthSafety(a: ScoringPet, b: ScoringPet): number {
-  const aVerified = a.healthRecords.filter((h) => h.isVerified).length;
-  const bVerified = b.healthRecords.filter((h) => h.isVerified).length;
-  // 6 points per side for "has any verified", up to 18 for breadth (3+ on b).
-  let score = 0;
-  if (aVerified > 0) score += 6;
-  if (bVerified > 0) score += 6;
-  score += Math.min(18, bVerified * 4);
-  return Math.min(30, score);
-}
-
-/** 0–20: lower COI = higher diversity. */
-function diversityScore(coiPct: number): number {
-  if (coiPct >= COI_DANGER_THRESHOLD) return 0;
-  // Linear: 0% COI → 20 points, 12.5% COI → 0 points.
-  const ratio = 1 - coiPct / COI_DANGER_THRESHOLD;
-  return Math.round(ratio * 20);
-}
-
-/** 0–10: Haversine distance using rounded lat/lng (privacy rule). */
-function proximityScore(a: ScoringPet, b: ScoringPet): number {
-  const aLat = a.owner?.locationLat;
-  const aLng = a.owner?.locationLng;
-  const bLat = b.owner?.locationLat;
-  const bLng = b.owner?.locationLng;
-  if (
-    aLat == null ||
-    aLng == null ||
-    bLat == null ||
-    bLng == null
-  ) {
-    return 5; // unknown → neutral
+function readCoiEstimate(traits: PetTrait[]): number | null {
+  for (const t of traits) {
+    const n = t.traitName.toLowerCase();
+    if (n === "coiestimate" || n === "coi" || n === "inbreeding coefficient") {
+      const parsed = parseFloat(t.traitValue.replace("%", "").trim());
+      if (Number.isFinite(parsed)) return parsed;
+    }
   }
-
-  const distanceKm = haversineKm(aLat, aLng, bLat, bLng);
-  if (distanceKm < 25) return 10;
-  if (distanceKm < 100) return 8;
-  if (distanceKm < 250) return 6;
-  if (distanceKm < 500) return 4;
-  if (distanceKm < 1000) return 2;
-  return 1;
+  return null;
 }
-
-/** 0–5: misc owner preferences (verified breeder, etc.). */
-function ownerPreferenceScore(_a: ScoringPet, b: ScoringPet): number {
-  // Placeholder — bump if the candidate's owner is a verified breeder.
-  // We don't have owner on `b` typed here for verified flag yet; default low.
-  return 3;
-}
-
-/* ─── Helpers ────────────────────────────────────────────────────────── */
 
 function ageInMonths(dob: Date | string): number {
   const d = typeof dob === "string" ? new Date(dob) : dob;
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return Infinity;
   const now = new Date();
   return (
     (now.getFullYear() - d.getFullYear()) * 12 +
@@ -208,35 +340,6 @@ function ageInMonths(dob: Date | string): number {
   );
 }
 
-function findSharedRecessive(a: ScoringPet, b: ScoringPet): string | null {
-  const RECESSIVE_KEYS = ["recessive", "huu", "dm", "prcd", "mdr1"];
-  const aTraits = a.traits.map(
-    (t) => `${t.traitName} ${t.traitValue}`.toLowerCase()
-  );
-  const bTraits = b.traits.map(
-    (t) => `${t.traitName} ${t.traitValue}`.toLowerCase()
-  );
-  for (const key of RECESSIVE_KEYS) {
-    if (aTraits.some((s) => s.includes(key)) && bTraits.some((s) => s.includes(key))) {
-      return key.toUpperCase();
-    }
-  }
-  return null;
-}
-
-function haversineKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v));
 }
