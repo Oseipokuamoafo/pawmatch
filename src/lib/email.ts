@@ -37,6 +37,53 @@ export async function sendVerificationApproved(opts: {
   await safeSend({ to: opts.to, subject, html });
 }
 
+export async function sendMatchRequestReceived(opts: {
+  to: string;
+  recipientName: string | null;
+  initiatorPetName: string;
+  recipientPetName: string;
+  score: number;
+  matchId: string;
+}) {
+  const subject = `Someone wants to match with ${opts.recipientPetName}!`;
+  const html = brandedTemplate({
+    eyebrow: "Match request",
+    headline: `${escape(opts.initiatorPetName)} → ${escape(opts.recipientPetName)}`,
+    body: `<p>Hi ${escape(opts.recipientName ?? "there")},</p>
+      <p>You have a new match request from <strong>${escape(opts.initiatorPetName)}</strong>.</p>
+      <p style="font-family:Georgia,serif;font-size:42px;font-weight:900;color:#C94B2A;margin:18px 0 0">
+        ${opts.score}
+        <span style="font-family:-apple-system;font-size:13px;font-weight:600;color:#3D2A1A">/100 compatibility</span>
+      </p>
+      <p>Tap below to review the score breakdown — traits, health, COI, proximity —
+      and accept or decline.</p>`,
+    ctaLabel: "Review request",
+    ctaHref: `${APP_URL}/matches?tab=received`,
+  });
+  await safeSend({ to: opts.to, subject, html });
+}
+
+export async function sendMatchAccepted(opts: {
+  to: string;
+  initiatorName: string | null;
+  initiatorPetName: string;
+  recipientPetName: string;
+  matchId: string;
+}) {
+  const subject = `Your match with ${opts.recipientPetName} is on!`;
+  const html = brandedTemplate({
+    eyebrow: "Match accepted",
+    headline: `It's a match.`,
+    body: `<p>Hi ${escape(opts.initiatorName ?? "there")},</p>
+      <p><strong>${escape(opts.recipientPetName)}</strong>'s owner accepted your request
+      for <strong>${escape(opts.initiatorPetName)}</strong>. You can now start an
+      encrypted conversation to coordinate next steps.</p>`,
+    ctaLabel: "Open chat",
+    ctaHref: `${APP_URL}/dashboard/messages/${opts.matchId}`,
+  });
+  await safeSend({ to: opts.to, subject, html });
+}
+
 export async function sendReportThresholdAlert(opts: {
   to: string;
   targetLabel: string;

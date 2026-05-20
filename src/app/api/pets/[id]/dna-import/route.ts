@@ -83,7 +83,26 @@ export async function POST(req: Request, ctx: Ctx) {
     source: "DNA_VERIFIED" as const,
   }));
 
-  const allTraits = [...breedTraits, ...markerTraits, ...plainTraits];
+  // Mirror the COI into a queryable PetTrait so the scoring engine
+  // (lib/scoring.ts → readCoiEstimate) can find it.
+  const coiTraits =
+    data.coi != null
+      ? [
+          {
+            petId,
+            traitName: "coiEstimate",
+            traitValue: `${data.coi.toFixed(2)}`,
+            source: "DNA_VERIFIED" as const,
+          },
+        ]
+      : [];
+
+  const allTraits = [
+    ...breedTraits,
+    ...markerTraits,
+    ...plainTraits,
+    ...coiTraits,
+  ];
 
   // Compose a short, useful notes block on the PetHealth record
   const summaryLines: string[] = [];

@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createMatchSchema } from "@/lib/validations/match";
 import { scoreMatch } from "@/lib/scoring";
+import { sendMatchRequestReceived } from "@/lib/email";
+import type { Prisma } from "@/generated/prisma";
 
 /* ─── POST /api/matches — initiate a match request ───────────────────── */
 
@@ -45,7 +47,7 @@ export async function POST(req: Request) {
         healthRecords: true,
         breedingGoals: true,
         owner: {
-          select: { id: true, locationLat: true, locationLng: true },
+          select: { id: true, name: true, email: true, locationLat: true, locationLng: true },
         },
       },
     }),
@@ -56,7 +58,7 @@ export async function POST(req: Request) {
         healthRecords: true,
         breedingGoals: true,
         owner: {
-          select: { id: true, locationLat: true, locationLng: true },
+          select: { id: true, name: true, email: true, locationLat: true, locationLng: true },
         },
       },
     }),
@@ -80,7 +82,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // Dedupe — block if a non-rejected match already exists in either direction
+  // Dedupe — return the existing record if a non-rejected match already exists
   const existing = await prisma.match.findFirst({
     where: {
       OR: [
@@ -92,8 +94,12 @@ export async function POST(req: Request) {
   });
   if (existing) {
     return NextResponse.json(
-      { error: "A match already exists between these pets", match: existing },
-      { status: 409 }
+      {
+        match: existing,
+        existed: true,
+        message: "A match already exists between these pets.",
+      },
+      { status: 200 }
     );
   }
 
@@ -114,42 +120,69 @@ export async function POST(req: Request) {
       initiatedById: session.user.id,
       receivedById: petB.ownerId,
       score: result.score,
+      breakdown: result.breakdown as unknown as Prisma.InputJsonValue,
       flags: result.flags,
       status: "PENDING",
     },
   });
 
-  return NextResponse.json({ match, scoring: result }, { status: 201 });
+  // Notify the recipient (fire-and-forget — failures log internally)
+  if (petB.owner?.email) {
+    sendMatchRequestReceived({
+      to: petB.owner.email,
+      recipientName: petB.owner.name,
+      initiatorPetName: petA.name,
+      recipientPetName: petB.name,
+      score: result.score,
+      matchId: match.id,
+    }).catch(() => undefined);
+  }
+
+  return NextResponse.json(
+    { match, scoring: result, existed: false },
+    { status: 201 }
+  );
 }
 
 /* ─── GET /api/matches — list current user's matches ─────────────────── */
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
   const userId = session.user.id;
+
+  // Optional ?status= filter (comma-separated supported)
+  const url = new URL(req.url);
+  const statusRaw = url.searchParams.get("status");
+  const statusList = statusRaw
+    ? (statusRaw
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter((s) =>
+          ["PENDING", "ACCEPTED", "REJECTED", "EXPIRED"].includes(s)
+        ) as ("PENDING" | "ACCEPTED" | "REJECTED" | "EXPIRED")[])
+    : null;
 
   const matches = await prisma.match.findMany({
     where: {
-      OR: [
-        { initiatedById: userId },
-        { petB: { ownerId: userId } },
-      ],
+      OR: [{ initiatedById: userId }, { receivedById: userId }],
+      ...(statusList && statusList.length > 0
+        ? { status: { in: statusList } }
+        : {}),
     },
     include: {
       petA: {
         include: {
           photos: { orderBy: { isPrimary: "desc" }, take: 1 },
-          owner: { select: { id: true, name: true } },
+          owner: { select: { id: true, name: true, verificationBadge: true } },
         },
       },
       petB: {
         include: {
           photos: { orderBy: { isPrimary: "desc" }, take: 1 },
-          owner: { select: { id: true, name: true } },
+          owner: { select: { id: true, name: true, verificationBadge: true } },
         },
       },
     },

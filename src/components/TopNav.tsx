@@ -42,7 +42,7 @@ export async function TopNav() {
           <div className="flex items-center gap-1 sm:gap-2">
             <NavLink href="/dashboard">My pets</NavLink>
             <NavLink href="/browse">Browse</NavLink>
-            <NavLink href="/dashboard/matches">Matches</NavLink>
+            <NavLink href="/matches">Matches</NavLink>
             <NavLink href="/dashboard/messages">Messages</NavLink>
             {isBreeder && !isVerified && (
               <NavLink href="/dashboard/verify">Get verified</NavLink>

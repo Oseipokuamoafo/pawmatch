@@ -224,6 +224,9 @@ model Match {
   petAId        String
   petBId        String
   score         Float
+  /// JSON of the 5 component scores so the UI can render a breakdown.
+  /// { traits, health, diversity, proximity, preferences }
+  breakdown     Json?
   status        MatchStatus @default(PENDING)
   flags         String[]
   initiatedById String

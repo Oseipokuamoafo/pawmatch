@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { updateMatchSchema } from "@/lib/validations/match";
+import {
+  updateMatchSchema,
+  normalizeMatchAction,
+} from "@/lib/validations/match";
+import { sendMatchAccepted } from "@/lib/email";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -26,15 +30,22 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const parsed = updateMatchSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Validation failed", issues: parsed.error.flatten().fieldErrors },
+      {
+        error:
+          "Validation failed — expected { action: 'accept' | 'reject' }",
+        issues: parsed.error.flatten().fieldErrors,
+      },
       { status: 400 }
     );
   }
+  const targetStatus = normalizeMatchAction(parsed.data);
 
   const match = await prisma.match.findUnique({
     where: { id },
     include: {
-      petB: { select: { ownerId: true } },
+      petA: { select: { id: true, name: true, ownerId: true } },
+      petB: { select: { id: true, name: true, ownerId: true } },
+      initiatedBy: { select: { id: true, name: true, email: true } },
     },
   });
   if (!match) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -61,8 +72,19 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   const updated = await prisma.match.update({
     where: { id },
-    data: { status: parsed.data.status },
+    data: { status: targetStatus },
   });
+
+  // Notify the initiator on accept (fire-and-forget)
+  if (targetStatus === "ACCEPTED" && match.initiatedBy?.email) {
+    sendMatchAccepted({
+      to: match.initiatedBy.email,
+      initiatorName: match.initiatedBy.name,
+      initiatorPetName: match.petA.name,
+      recipientPetName: match.petB.name,
+      matchId: match.id,
+    }).catch(() => undefined);
+  }
 
   return NextResponse.json({ match: updated });
 }
