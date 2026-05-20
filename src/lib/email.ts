@@ -79,7 +79,7 @@ export async function sendMatchAccepted(opts: {
       for <strong>${escape(opts.initiatorPetName)}</strong>. You can now start an
       encrypted conversation to coordinate next steps.</p>`,
     ctaLabel: "Open chat",
-    ctaHref: `${APP_URL}/dashboard/messages/${opts.matchId}`,
+    ctaHref: `${APP_URL}/messages/${opts.matchId}`,
   });
   await safeSend({ to: opts.to, subject, html });
 }

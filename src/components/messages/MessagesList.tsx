@@ -1,97 +1,80 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
+"use client";
 
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { decryptMessage } from "@/lib/crypto";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+
 import { calculateAge } from "@/lib/utils/age";
 import type { Sex, Species } from "@/generated/prisma";
 
-export default async function MessagesPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login?callbackUrl=/dashboard/messages");
+export interface ThreadRow {
+  matchId: string;
+  score: number;
+  flagged: boolean;
+  their: {
+    id: string;
+    name: string;
+    breed: string;
+    species: Species;
+    sex: Sex;
+    dateOfBirth: string;
+    livePhotoUrl: string | null;
+    photoUrl: string | null;
+    ownerName: string | null;
+  };
+  mine: { id: string; name: string };
+  unread: number;
+  lastPreview: { text: string; mine: boolean; createdAt: string } | null;
+}
 
-  const userId = session.user.id;
+const SPECIES_EMOJI: Record<Species, string> = { DOG: "🐕", CAT: "🐈" };
 
-  const matches = await prisma.match.findMany({
-    where: {
-      status: "ACCEPTED",
-      OR: [{ initiatedById: userId }, { receivedById: userId }],
-    },
-    include: {
-      petA: {
-        include: {
-          photos: { orderBy: { isPrimary: "desc" }, take: 1 },
-          owner: { select: { id: true, name: true } },
-        },
-      },
-      petB: {
-        include: {
-          photos: { orderBy: { isPrimary: "desc" }, take: 1 },
-          owner: { select: { id: true, name: true } },
-        },
-      },
-      messages: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
-      _count: {
-        select: {
-          messages: {
-            where: { isRead: false, senderId: { not: userId } },
-          },
-        },
-      },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+export function MessagesList({ threads }: { threads: ThreadRow[] }) {
+  const [query, setQuery] = useState("");
 
-  const threads = matches.map((m) => {
-    const incoming = m.initiatedById !== userId;
-    const their = incoming ? m.petA : m.petB;
-    const mine = incoming ? m.petB : m.petA;
-    const last = m.messages[0] ?? null;
-    return {
-      matchId: m.id,
-      score: m.score,
-      flagged: m.flags.length > 0,
-      their,
-      mine,
-      unread: m._count.messages,
-      lastPreview: last
-        ? {
-            text: safeDecrypt(last.encryptedContent, last.iv),
-            mine: last.senderId === userId,
-            createdAt: last.createdAt,
-          }
-        : null,
-    };
-  });
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return threads;
+    return threads.filter((t) => {
+      const hay = [
+        t.their.name,
+        t.their.breed,
+        t.their.ownerName ?? "",
+        t.mine.name,
+        t.lastPreview?.text ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [query, threads]);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12 md:py-16">
-      <header className="mb-10">
-        <p className="eyebrow">Conversations</p>
-        <h1
-          className="mt-3 leading-[1.05] tracking-tight text-balance text-dark"
-          style={{
-            fontFamily: "var(--font-playfair, Georgia, serif)",
-            fontWeight: 900,
-            fontSize: "clamp(2.5rem, 5vw, 3.5rem)",
-          }}
-        >
-          Messages.
-        </h1>
-        <p className="mt-3 max-w-lg text-base text-dark-muted leading-relaxed">
-          Encrypted chats with owners of accepted matches.
-        </p>
-      </header>
+    <div>
+      <div className="mb-6">
+        <label className="relative block">
+          <span className="sr-only">Search conversations</span>
+          <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-dark-muted" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search conversations…"
+            className="w-full rounded-full border border-sand bg-cream py-2.5 pl-11 pr-4 text-sm text-dark outline-none transition-[border-color] duration-150 focus:border-terracotta focus:ring-2 focus:ring-terracotta/15"
+          />
+        </label>
+      </div>
 
-      {threads.length === 0 ? (
-        <EmptyState />
+      {filtered.length === 0 ? (
+        threads.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <p className="card text-center text-sm italic text-dark-muted">
+            No matches for &ldquo;{query}&rdquo;.
+          </p>
+        )
       ) : (
         <ul className="space-y-3">
-          {threads.map((t) => (
+          {filtered.map((t) => (
             <ThreadRow key={t.matchId} {...t} />
           ))}
         </ul>
@@ -102,40 +85,18 @@ export default async function MessagesPage() {
 
 /* ─── Row ────────────────────────────────────────────────────────────── */
 
-interface ThreadRowProps {
-  matchId: string;
-  score: number;
-  flagged: boolean;
-  their: {
-    id: string;
-    name: string;
-    breed: string;
-    species: Species;
-    sex: Sex;
-    dateOfBirth: Date;
-    livePhotoUrl: string | null;
-    photos: { url: string }[];
-    owner: { id: string; name: string | null } | null;
-  };
-  mine: { id: string; name: string };
-  unread: number;
-  lastPreview:
-    | { text: string; mine: boolean; createdAt: Date }
-    | null;
-}
-
 function ThreadRow({
   matchId,
   their,
   mine,
   unread,
   lastPreview,
-}: ThreadRowProps) {
-  const heroUrl = their.photos[0]?.url ?? their.livePhotoUrl;
+}: ThreadRow) {
+  const heroUrl = their.photoUrl ?? their.livePhotoUrl;
   return (
     <li>
       <Link
-        href={`/dashboard/messages/${matchId}`}
+        href={`/messages/${matchId}`}
         className="card card-hover flex items-center gap-4 p-4"
       >
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-sand">
@@ -144,7 +105,7 @@ function ThreadRow({
             <img src={heroUrl} alt={their.name} className="card-image h-full w-full object-cover" />
           ) : (
             <div className="card-image flex h-full w-full items-center justify-center text-2xl">
-              {their.species === "DOG" ? "🐕" : "🐈"}
+              {SPECIES_EMOJI[their.species]}
             </div>
           )}
           {unread > 0 && (
@@ -172,13 +133,11 @@ function ThreadRow({
               </span>
             )}
           </div>
-
           <p className="text-xs text-dark-muted">
             {their.breed} · {calculateAge(their.dateOfBirth)}
-            {their.owner?.name ? ` · ${their.owner.name}` : ""}
+            {their.ownerName ? ` · ${their.ownerName}` : ""}
             {" · "}for <span className="font-semibold text-dark">{mine.name}</span>
           </p>
-
           {lastPreview ? (
             <p className="mt-1.5 truncate text-sm text-dark/85">
               {lastPreview.mine ? <span className="text-dark-muted">You: </span> : null}
@@ -210,28 +169,28 @@ function EmptyState() {
       <p className="mt-2 max-w-sm text-sm text-dark-muted leading-relaxed">
         Once you and another owner both accept a match, your encrypted chat opens here.
       </p>
-      <Link href="/dashboard/matches" className="btn-primary mt-6">
+      <Link href="/matches" className="btn-primary mt-6">
         See my matches
       </Link>
     </div>
   );
 }
 
-function formatRelative(d: Date | string): string {
-  const date = typeof d === "string" ? new Date(d) : d;
+function formatRelative(d: string): string {
+  const date = new Date(d);
   const diffMin = (Date.now() - date.getTime()) / 60_000;
   if (diffMin < 1) return "just now";
   if (diffMin < 60) return `${Math.floor(diffMin)}m`;
   if (diffMin < 60 * 24) return `${Math.floor(diffMin / 60)}h`;
-  if (diffMin < 60 * 24 * 7)
-    return `${Math.floor(diffMin / (60 * 24))}d`;
+  if (diffMin < 60 * 24 * 7) return `${Math.floor(diffMin / (60 * 24))}d`;
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function safeDecrypt(ct: string, iv: string): string {
-  try {
-    return decryptMessage(ct, iv);
-  } catch {
-    return "[encrypted]";
-  }
+function SearchIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-hidden="true">
+      <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
 }

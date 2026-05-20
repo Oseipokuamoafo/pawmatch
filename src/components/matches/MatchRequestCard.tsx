@@ -202,7 +202,7 @@ export function MatchRequestCard({ match, side }: MatchRequestCardProps) {
 
           {match.status === "ACCEPTED" && (
             <Link
-              href={`/dashboard/messages/${match.id}`}
+              href={`/messages/${match.id}`}
               className="btn-primary !px-4 !py-2 !text-sm"
             >
               Message

@@ -55,6 +55,11 @@ const SOFT_RULES: { test: RegExp; reason: string }[] = [
     test: /\+?\d[\d\s().-]{8,}\d/,
     reason: "Phone-number-like sequence",
   },
+  {
+    // Any http/https/www. URL — point users at the PawMatch DMs only
+    test: /\b(https?:\/\/|www\.)[^\s]{3,}/i,
+    reason: "External link",
+  },
 ];
 
 export function detectScam(content: string): ScamResult {

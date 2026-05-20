@@ -43,7 +43,7 @@ export async function TopNav() {
             <NavLink href="/dashboard">My pets</NavLink>
             <NavLink href="/browse">Browse</NavLink>
             <NavLink href="/matches">Matches</NavLink>
-            <NavLink href="/dashboard/messages">Messages</NavLink>
+            <NavLink href="/messages">Messages</NavLink>
             {isBreeder && !isVerified && (
               <NavLink href="/dashboard/verify">Get verified</NavLink>
             )}
