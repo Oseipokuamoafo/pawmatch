@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createMessageSchema } from "@/lib/validations/message";
 import { encryptMessage, decryptMessage } from "@/lib/crypto";
+import { detectScam } from "@/lib/scam-detection";
+import { emitMessageNew } from "@/lib/socket-io";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -29,7 +31,7 @@ async function loadMatchForParticipant(matchId: string, userId: string) {
   return { ok: true as const, match };
 }
 
-/* ─── GET — list decrypted messages, mark inbound as read ───────────── */
+/* ─── GET — list decrypted messages with scam annotations ───────────── */
 
 export async function GET(_req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -61,19 +63,29 @@ export async function GET(_req: Request, ctx: Ctx) {
     })
     .catch(() => undefined);
 
-  const messages = rows.map((m) => ({
-    id: m.id,
-    senderId: m.senderId,
-    isRead: m.isRead,
-    createdAt: m.createdAt,
-    content: safeDecrypt(m.encryptedContent, m.iv),
-    isMine: m.senderId === session.user.id,
-  }));
+  const messages = rows.map((m) => {
+    const content = safeDecrypt(m.encryptedContent, m.iv);
+    const scam = detectScam(content);
+    // Show all matches (hard + soft) to both readers — only hard matches
+    // are rejected at write-time, so anything persisted here is soft.
+    return {
+      id: m.id,
+      senderId: m.senderId,
+      isRead: m.isRead,
+      createdAt: m.createdAt,
+      content,
+      isMine: m.senderId === session.user.id,
+      scamWarnings: scam.matches.map((x) => ({
+        severity: x.severity,
+        reason: x.reason,
+      })),
+    };
+  });
 
   return NextResponse.json({ messages });
 }
 
-/* ─── POST — encrypt + persist ──────────────────────────────────────── */
+/* ─── POST — scam-check, encrypt, persist, broadcast ─────────────────── */
 
 export async function POST(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -103,6 +115,23 @@ export async function POST(req: Request, ctx: Ctx) {
     );
   }
 
+  // Hard scam check — refuse the message before it touches the DB
+  const scan = detectScam(parsed.data.content);
+  if (scan.blocked) {
+    const reasons = scan.matches
+      .filter((m) => m.severity === "hard")
+      .map((m) => m.reason);
+    return NextResponse.json(
+      {
+        error:
+          "This message looks unsafe and wasn't sent. PawMatch blocks payment-rail and crypto-wallet language to protect both sides.",
+        reasons,
+        blocked: true,
+      },
+      { status: 422 }
+    );
+  }
+
   try {
     const { ciphertext, iv } = encryptMessage(parsed.data.content);
     const message = await prisma.message.create({
@@ -114,6 +143,15 @@ export async function POST(req: Request, ctx: Ctx) {
       },
     });
 
+    // Ping listeners. Payload carries no decrypted content — clients
+    // refetch the thread via GET above where auth + decryption happens.
+    emitMessageNew({
+      matchId: id,
+      messageId: message.id,
+      senderId: message.senderId,
+      at: message.createdAt,
+    });
+
     return NextResponse.json(
       {
         message: {
@@ -123,6 +161,10 @@ export async function POST(req: Request, ctx: Ctx) {
           createdAt: message.createdAt,
           content: parsed.data.content,
           isMine: true,
+          scamWarnings: scan.matches.map((x) => ({
+            severity: x.severity,
+            reason: x.reason,
+          })),
         },
       },
       { status: 201 }
