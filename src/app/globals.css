@@ -1,26 +1,341 @@
 @import "tailwindcss";
 
+/* ── z-index hierarchy ────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --z-background: 0;
+  --z-content: 10;
+  --z-nav: 20;
+  --z-cursor: 50;
+  --z-modal: 100;
+  --z-toast: 200;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ── Global cursor behavior ───────────────────────────────────────────────── */
+/* Custom dot+ring is the source of truth on fine pointers, site-wide.
+   Native cursor is hidden everywhere EXCEPT text-editing surfaces (so users
+   can see their caret) and disabled controls. Touch / coarse pointers get
+   their native cursor back. */
+html, body { cursor: none; }
+html *, body * { cursor: inherit; }
+
+input, textarea, select, [contenteditable="true"], [role="textbox"] {
+  cursor: text;
+}
+button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
+
+@media (pointer: coarse) {
+  html, body { cursor: auto; }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Design tokens ────────────────────────────────────────────────────────── */
+:root, [data-theme="light"] {
+  --color-cream: #FDF8F2;
+  --color-surface: #FFFFFF;
+  --color-surface-elevated: #FFFFFF;
+  --color-terracotta: #C94B2A;
+  --color-terracotta-light: #E8604A;
+  --color-terracotta-dark: #A33820;
+  --color-dark: #1C1008;
+  --color-dark-muted: #3D2A1A;
+  --color-sand: #E8D5B7;
+  --color-sage: #7A9E7E;
+  --color-divider: #E8D5B7;
+  --shadow-card: 0 2px 8px rgba(28, 16, 8, 0.06), 0 1px 2px rgba(28, 16, 8, 0.04);
+  --shadow-elev: 0 12px 32px rgba(201, 75, 42, 0.12);
+  --paper-dot-strong: rgba(28, 16, 8, 0.045);
+  --paper-dot-soft: rgba(28, 16, 8, 0.025);
+}
+
+[data-theme="dark"] {
+  --color-cream: #1C1008;          /* page background */
+  --color-surface: #261810;        /* card surface */
+  --color-surface-elevated: #2F1E14;
+  --color-terracotta: #E8593C;     /* slightly brighter on dark */
+  --color-terracotta-light: #FF7A5C;
+  --color-terracotta-dark: #C94B2A;
+  --color-dark: #F5EFE6;           /* primary text */
+  --color-dark-muted: rgba(245, 239, 230, 0.65); /* secondary text */
+  --color-sand: rgba(232, 213, 183, 0.18);       /* borders */
+  --color-sage: #4FB893;
+  --color-divider: rgba(232, 213, 183, 0.14);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-elev: 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(232, 213, 183, 0.06);
+  --paper-dot-strong: rgba(245, 239, 230, 0.04);
+  --paper-dot-soft: rgba(245, 239, 230, 0.02);
+  color-scheme: dark;
+}
+
+/* ── Tailwind v4 theme ────────────────────────────────────────────────────── */
+@theme {
+  --color-cream: #FDF8F2;
+  --color-surface: #FFFFFF;
+  --color-surface-elevated: #FFFFFF;
+  --color-terracotta: #C94B2A;
+  --color-terracotta-light: #E8604A;
+  --color-terracotta-dark: #A33820;
+  --color-dark: #1C1008;
+  --color-dark-muted: #3D2A1A;
+  --color-sand: #E8D5B7;
+  --color-sage: #7A9E7E;
+
+  --font-serif: var(--font-playfair, Georgia), serif;
+  --font-sans: var(--font-inter, system-ui), sans-serif;
+  --font-playfair: var(--font-playfair, Georgia, serif);
+  --font-inter: var(--font-inter, system-ui, sans-serif);
+
+  --radius-pill: 9999px;
+  --radius-card: 16px;
+}
+
+/* ── Base styles ──────────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-cream);
+  color: var(--color-dark);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes drift {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50%      { transform: translateY(-6px) rotate(1.5deg); }
+}
+@keyframes spinSlow {
+  to { transform: rotate(360deg); }
+}
+
+/* Three orb drift paths so multiple orbs don't move in lockstep */
+@keyframes orb-a {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(60px, -40px, 0) scale(1.08); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes orb-b {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-50px, 35px, 0) scale(0.94); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes orb-c {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(40px, 50px, 0) scale(1.04); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes pawFade {
+  0%, 100% { opacity: var(--paw-base, 0.05); }
+  50%      { opacity: calc(var(--paw-base, 0.05) + 0.025); }
+}
+
+.reveal {
+  animation: fadeUp 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.drift {
+  animation: drift 7s ease-in-out infinite;
+}
+.spin-slow {
+  animation: spinSlow 38s linear infinite;
+}
+
+/* Floating orbs */
+.orbs { mix-blend-mode: multiply; }
+[data-theme="dark"] .orbs { mix-blend-mode: screen; }
+
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  will-change: transform;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* Paw scatter marks */
+.paw-mark {
+  will-change: opacity;
+  animation: pawFade 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .drift, .spin-slow, .orb, .paw-mark { animation: none; }
+}
+
+/* ── Editorial utilities ──────────────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-terracotta);
+}
+.hairline {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--color-sand) 20%, var(--color-sand) 80%, transparent);
+}
+.text-balance { text-wrap: balance; }
+.font-italic-serif { font-style: italic; font-family: var(--font-serif); }
+
+/* Cursor click ripple — used by the global Cursor component */
+.cursor-ripple {
+  position: fixed;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(201, 75, 42, 0.4);
+  border-radius: 9999px;
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  animation: cursorRipple 0.9s ease-out forwards;
+  z-index: calc(var(--z-cursor) - 2);
+}
+@keyframes cursorRipple {
+  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(3.5); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cursor-ripple { animation: none; opacity: 0; }
+}
+
+/* Subtle paper grain for hero/footer backgrounds */
+.paper-grain {
+  background-image:
+    radial-gradient(var(--paper-dot-strong) 1px, transparent 1px),
+    radial-gradient(var(--paper-dot-soft) 1px, transparent 1px);
+  background-size: 22px 22px, 9px 9px;
+  background-position: 0 0, 4px 6px;
+}
+
+/* Surface utility — light: white, dark: warm near-black */
+.bg-surface { background-color: var(--color-surface); }
+.bg-surface-elevated { background-color: var(--color-surface-elevated); }
+
+/* ── Utility components ───────────────────────────────────────────────────── */
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.75rem;
+    background-color: var(--color-terracotta);
+    color: white;
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    transition: background-color 150ms ease, transform 100ms ease, box-shadow 150ms ease;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(28, 16, 8, 0.08);
+  }
+  .btn-primary:hover {
+    background-color: #B03E22;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(201, 75, 42, 0.35);
+  }
+  .btn-primary:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 1px 2px rgba(28, 16, 8, 0.08);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.75rem;
+    background-color: transparent;
+    color: var(--color-terracotta);
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    border: 2px solid var(--color-terracotta);
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+    cursor: pointer;
+  }
+  .btn-secondary:hover {
+    background-color: rgba(201, 75, 42, 0.06);
+    border-color: rgba(201, 75, 42, 0.55);
+    color: var(--color-terracotta);
+  }
+  .btn-secondary:active {
+    transform: scale(0.985);
+  }
+  .btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .card {
+    background-color: var(--color-surface);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: 1.5rem;
+    transition: background-color 300ms ease, box-shadow 300ms ease;
+  }
+
+  .card-hover {
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 12px 32px rgba(201, 75, 42, 0.12);
+  }
+
+  /* Image wrapper inside a hoverable card — image zooms on parent hover */
+  .card-hover .card-image {
+    transition: transform 400ms ease;
+  }
+  .card-hover:hover .card-image {
+    transform: scale(1.04);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 1rem;
+    background-color: var(--color-sand);
+    color: var(--color-dark);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--radius-pill);
+    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+    user-select: none;
+  }
+  .chip:hover {
+    background-color: rgba(201, 75, 42, 0.06);
+    border-color: var(--color-terracotta);
+    color: var(--color-terracotta);
+  }
+  .chip[data-selected="true"],
+  .chip.active {
+    background-color: var(--color-terracotta);
+    color: white;
+    border-color: var(--color-terracotta);
+  }
+  .chip[data-selected="true"]:hover,
+  .chip.active:hover {
+    background-color: #B03E22;
+    color: white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary, .btn-secondary, .card-hover, .card-hover .card-image, .chip {
+    transition: none !important;
+  }
+  .btn-primary:hover, .card-hover:hover, .card-hover:hover .card-image {
+    transform: none !important;
+  }
 }

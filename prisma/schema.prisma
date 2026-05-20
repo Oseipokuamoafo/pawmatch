@@ -1,0 +1,314 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  BREEDER
+  ADMIN
+}
+
+enum Species {
+  DOG
+  CAT
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum HealthRecordType {
+  VACCINE
+  DNA
+  VET_VISIT
+  CERTIFICATE
+}
+
+enum TraitSource {
+  SELF_REPORTED
+  DNA_VERIFIED
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  emailVerified       DateTime?
+  name                String?
+  image               String?
+  passwordHash        String?
+  role                Role                 @default(OWNER)
+  isVerified          Boolean              @default(false)
+  verificationBadge   Boolean              @default(false)
+  locationLat         Float?
+  locationLng         Float?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  accounts            Account[]
+  sessions            Session[]
+  pets                Pet[]
+  sentMatches         Match[]              @relation("SentMatches")
+  receivedMatches     Match[]              @relation("ReceivedMatches")
+  messages            Message[]
+  reports             Report[]             @relation("ReporterReports")
+  verificationRequest VerificationRequest?
+
+  @@index([email])
+}
+
+// ─── NextAuth required models ─────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Pet {
+  id              String         @id @default(cuid())
+  name            String
+  species         Species
+  breed           String
+  dateOfBirth     DateTime
+  sex             Sex
+  color           String?
+  weight          Float?
+  bio             String?
+  isActive        Boolean        @default(true)
+  livePhotoUrl    String?
+  ownerId         String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  owner           User           @relation(fields: [ownerId], references: [id])
+  photos          PetPhoto[]
+  healthRecords   PetHealth[]
+  traits          PetTrait[]
+  breedingGoals   BreedingGoal[]
+  sentMatches     Match[]        @relation("PetAMatches")
+  receivedMatches Match[]        @relation("PetBMatches")
+
+  @@index([ownerId])
+  @@index([species])
+  @@index([breed])
+}
+
+model PetPhoto {
+  id        String   @id @default(cuid())
+  petId     String
+  url       String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+}
+
+model PetHealth {
+  id         String           @id @default(cuid())
+  petId      String
+  type       HealthRecordType
+  title      String
+  fileUrl    String?
+  isVerified Boolean          @default(false)
+  verifiedBy String?
+  verifiedAt DateTime?
+  notes      String?
+  recordDate DateTime
+
+  pet        Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+}
+
+model PetTrait {
+  id         String      @id @default(cuid())
+  petId      String
+  traitName  String
+  traitValue String
+  source     TraitSource @default(SELF_REPORTED)
+
+  pet        Pet         @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+}
+
+model BreedingGoal {
+  id              String   @id @default(cuid())
+  petId           String
+  desiredTraits   Json
+  preferredBreeds String[]
+  maxCOI          Float?
+  notes           String?
+
+  pet             Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  petAId        String
+  petBId        String
+  score         Float
+  status        MatchStatus @default(PENDING)
+  flags         String[]
+  initiatedById String
+  receivedById  String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  petA          Pet         @relation("PetAMatches", fields: [petAId], references: [id])
+  petB          Pet         @relation("PetBMatches", fields: [petBId], references: [id])
+  initiatedBy   User        @relation("SentMatches", fields: [initiatedById], references: [id])
+  receivedBy    User        @relation("ReceivedMatches", fields: [receivedById], references: [id])
+  messages      Message[]
+  contract      Contract?
+
+  @@index([petAId])
+  @@index([petBId])
+  @@index([initiatedById])
+  @@index([receivedById])
+  @@index([status])
+}
+
+model Message {
+  id               String   @id @default(cuid())
+  matchId          String
+  senderId         String
+  encryptedContent String
+  iv               String
+  createdAt        DateTime @default(now())
+  isRead           Boolean  @default(false)
+
+  match            Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sender           User     @relation(fields: [senderId], references: [id])
+
+  @@index([matchId])
+  @@index([senderId])
+}
+
+model Contract {
+  id           String   @id @default(cuid())
+  matchId      String   @unique
+  templateType String
+  content      String
+  signedByA    Boolean  @default(false)
+  signedByB    Boolean  @default(false)
+  pdfUrl       String?
+  createdAt    DateTime @default(now())
+
+  match        Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+}
+
+model Breed {
+  id                   String   @id @default(cuid())
+  name                 String
+  species              Species
+  group                String?
+  averageCOI           Float?
+  commonRecessiveGenes String[]
+  minBreedingAgeMale   Int?
+  minBreedingAgeFemale Int?
+  description          String?
+
+  @@unique([name, species])
+  @@index([species])
+}
+
+model Report {
+  id           String       @id @default(cuid())
+  reporterId   String
+  targetUserId String?
+  targetPetId  String?
+  reason       String
+  description  String?
+  status       ReportStatus @default(OPEN)
+  createdAt    DateTime     @default(now())
+
+  reporter     User         @relation("ReporterReports", fields: [reporterId], references: [id])
+
+  @@index([reporterId])
+  @@index([targetUserId])
+  @@index([targetPetId])
+  @@index([status])
+}
+
+model VerificationRequest {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  documents          String[]
+  programDescription String
+  status             VerificationStatus @default(PENDING)
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  notes              String?
+  createdAt          DateTime           @default(now())
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
