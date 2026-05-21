@@ -21,6 +21,7 @@ import type {
   DashboardStats,
 } from "@/lib/dashboard-stats";
 import { useToast } from "@/components/toast/ToastProvider";
+import { DemoSeedButton } from "@/components/demo/DemoSeedButton";
 import type { VerificationStatus } from "@/generated/prisma";
 
 interface DashboardClientProps {
@@ -234,9 +235,16 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         Live photo + health records + breeding goals. We&apos;ll mark what&apos;s verified
         and flag what isn&apos;t.
       </p>
-      <button type="button" onClick={onAdd} className="btn-primary mt-8 inline-flex">
-        Create your first profile
-      </button>
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <button type="button" onClick={onAdd} className="btn-primary inline-flex">
+          Create your first profile
+        </button>
+        <DemoSeedButton variant="secondary" signedIn label="Or try the demo" />
+      </div>
+      <p className="relative mt-4 text-[11px] text-dark-muted">
+        The demo adds two real-world example pets (a German Shepherd and a
+        Pit Bull) and shows you a litter prediction in one click.
+      </p>
     </div>
   );
 }

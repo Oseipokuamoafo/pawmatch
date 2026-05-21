@@ -66,18 +66,25 @@ export interface LitterPrediction {
 
 export function parseGenotype(value: string): Genotype | null {
   const v = value.trim();
+  // Strip parenthetical annotations that DNA labs commonly append
+  // ("Carrier (one copy)", "Affected (two copies)", "Clear / N/N",
+  // "Carrier — heterozygous", etc.). Match the leading status keyword.
   const lowered = v.toLowerCase();
+  const head = lowered.split(/[\s(/[—–-]/)[0]?.trim() ?? "";
 
   // Direct genotype form like "Aa" / "BB" / "bb" / "Tt"
   if (/^[A-Za-z]{2}$/.test(v)) {
     return normaliseGenotype(v[0], v[1]);
   }
 
-  // Health-status convention
-  if (/^(clear|normal|unaffected|negative)$/i.test(lowered)) return "AA";
-  if (/^(carrier|heterozygous|het)$/i.test(lowered)) return "Aa";
-  if (/^(at[-\s]?risk|affected|positive|homozygous)$/i.test(lowered))
-    return "aa";
+  // Health-status convention — match the leading word so suffixes like
+  // "(one copy)" or "/ N" don't break the lookup.
+  if (/^(clear|normal|unaffected|negative|n\/n)$/.test(head)) return "AA";
+  if (/^(carrier|heterozygous|het)$/.test(head)) return "Aa";
+  if (/^(at[-\s]?risk|affected|positive|homozygous)$/.test(head)) return "aa";
+
+  // Fallback: also try the full string for the at-risk multi-word case.
+  if (/^at[-\s]?risk\b/.test(lowered)) return "aa";
 
   return null;
 }

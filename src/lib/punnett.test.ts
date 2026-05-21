@@ -19,6 +19,22 @@ test("parseGenotype: status strings map to AA/Aa/aa", () => {
   assert.equal(parseGenotype("affected"), "aa");
 });
 
+test("parseGenotype: tolerates real DNA-lab parenthetical annotations", () => {
+  // Embark / Wisdom Panel commonly append qualifiers — the parser
+  // should pull the leading status word and ignore the suffix.
+  assert.equal(parseGenotype("Carrier (one copy)"), "Aa");
+  assert.equal(parseGenotype("Affected (two copies)"), "aa");
+  assert.equal(parseGenotype("Clear / N/N"), "AA");
+  assert.equal(parseGenotype("Carrier — heterozygous"), "Aa");
+  assert.equal(parseGenotype("At-risk (homozygous)"), "aa");
+  assert.equal(parseGenotype("Clear  "), "AA");
+});
+
+test("parseGenotype: case-insensitive across status words", () => {
+  assert.equal(parseGenotype("CARRIER"), "Aa");
+  assert.equal(parseGenotype("Affected"), "aa");
+});
+
 test("parseGenotype: explicit genotypes pass through canonical-form", () => {
   assert.equal(parseGenotype("AA"), "AA");
   assert.equal(parseGenotype("Aa"), "Aa");

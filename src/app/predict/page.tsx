@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { predictLitter } from "@/lib/punnett";
 import { PredictPanel } from "@/components/predict/PredictPanel";
+import { OffspringProfilePanel } from "@/components/predict/OffspringProfilePanel";
 import { calculateAge } from "@/lib/utils/age";
 
 type SearchParams = Promise<{ a?: string; b?: string }>;
@@ -121,6 +122,13 @@ export default async function PredictPage({
 
       <PredictPanel
         prediction={prediction}
+        petAName={petA.name}
+        petBName={petB.name}
+      />
+
+      <OffspringProfilePanel
+        petAId={petA.id}
+        petBId={petB.id}
         petAName={petA.name}
         petBName={petB.name}
       />

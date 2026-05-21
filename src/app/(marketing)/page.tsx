@@ -12,6 +12,7 @@ import { PromisesSection } from "@/components/marketing/PromisesSection";
 import { MatchCardSection } from "@/components/marketing/MatchCardSection";
 import { VetNetworkSection } from "@/components/marketing/VetNetworkSection";
 import { BreedingAssistantSection } from "@/components/marketing/BreedingAssistantSection";
+import { DemoSeedButton } from "@/components/demo/DemoSeedButton";
 import { useTheme } from "@/components/providers/ThemeProvider";
 
 const TERRA = "#C94B2A";
@@ -162,6 +163,18 @@ function LightContent({ signedIn = false }: { signedIn?: boolean }) {
               <GhostButton href="/login">I already have an account</GhostButton>
             </>
           )}
+        </div>
+
+        {/* One-click "see what this product actually does" path.
+            Seeds Luna (German Shepherd) + Atlas (American Pit Bull
+            Terrier) on the current user, then redirects straight to
+            the Punnett predictor — real product output, not screenshots. */}
+        <div className="mt-6">
+          <DemoSeedButton
+            variant="link"
+            signedIn={signedIn}
+            label="See a live demo — GSD × Pit Bull litter prediction"
+          />
         </div>
 
         <div
