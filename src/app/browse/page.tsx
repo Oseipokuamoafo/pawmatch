@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { BrowseFeed } from "@/components/browse/BrowseFeed";
+import type { SelectorPet } from "@/components/browse/PetSelector";
 
 export default async function BrowsePage() {
   const session = await auth();
@@ -11,15 +12,41 @@ export default async function BrowsePage() {
     redirect("/login?callbackUrl=/browse");
   }
 
-  const pets = await prisma.pet.findMany({
+  const rows = await prisma.pet.findMany({
     where: { ownerId: session.user.id, isActive: true },
-    select: { id: true, name: true, species: true },
+    select: {
+      id: true,
+      name: true,
+      species: true,
+      sex: true,
+      breed: true,
+      dateOfBirth: true,
+      livePhotoUrl: true,
+      photos: {
+        where: { isPrimary: true },
+        select: { url: true },
+        take: 1,
+      },
+      owner: { select: { verificationBadge: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
-  if (pets.length === 0) {
+  if (rows.length === 0) {
     return <NoPetState />;
   }
+
+  const pets: SelectorPet[] = rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    species: p.species,
+    sex: p.sex,
+    breed: p.breed,
+    dateOfBirth: p.dateOfBirth.toISOString(),
+    photoUrl: p.photos[0]?.url ?? null,
+    livePhotoUrl: p.livePhotoUrl,
+    ownerVerified: p.owner?.verificationBadge ?? false,
+  }));
 
   return <BrowseFeed pets={pets} />;
 }

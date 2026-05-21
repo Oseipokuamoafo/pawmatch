@@ -1,22 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
+import { ActiveFiltersRow, type ActiveChip } from "./ActiveFiltersRow";
+import { EmptyMatches } from "./EmptyMatches";
+import { FilterCard } from "./FilterCard";
 import { MatchCard } from "./MatchCard";
+import { PetSelector, type SelectorPet } from "./PetSelector";
+import { ResultsHeader } from "./ResultsHeader";
+import type { SortBy } from "./SortMenu";
 import type { ScoredPet } from "@/app/api/browse/route";
 import type { Species } from "@/generated/prisma";
 
-interface UserPet {
-  id: string;
-  name: string;
-  species: Species;
-}
-
 interface BrowseFeedProps {
-  pets: UserPet[];
+  pets: SelectorPet[];
 }
-
-type SortBy = "best" | "nearest" | "newest";
 
 interface FiltersState {
   petId: string;
@@ -29,22 +28,21 @@ interface FiltersState {
 }
 
 const PAGE_SIZE = 12;
+const DEFAULTS = {
+  maxDistance: 200,
+  minHealthScore: 0,
+  verifiedOnly: false,
+  breed: "",
+  sortBy: "best" as SortBy,
+};
 
-/**
- * Full browse feed: pet switcher, filter bar, results grid with
- * "Load more" pagination and in-session skip.
- */
 export function BrowseFeed({ pets }: BrowseFeedProps) {
   const initialPet = pets[0];
 
   const [filters, setFilters] = useState<FiltersState>({
     petId: initialPet.id,
     species: initialPet.species,
-    maxDistance: 200,
-    minHealthScore: 0,
-    verifiedOnly: false,
-    breed: "",
-    sortBy: "best",
+    ...DEFAULTS,
   });
 
   const [results, setResults] = useState<ScoredPet[]>([]);
@@ -55,7 +53,7 @@ export function BrowseFeed({ pets }: BrowseFeedProps) {
   const [error, setError] = useState<string | null>(null);
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
 
-  // Debounce filter changes (search/sliders fire fast) and re-fetch
+  /* ── Fetcher ───────────────────────────────────────────────────────── */
   const reqIdRef = useRef(0);
   const fetchPage = useCallback(
     async (pageNum: number, replace: boolean) => {
@@ -87,7 +85,6 @@ export function BrowseFeed({ pets }: BrowseFeedProps) {
           total: number;
           hasMore: boolean;
         };
-        // Drop stale responses if the user kept tweaking filters
         if (reqId !== reqIdRef.current) return;
         setResults((prev) => (replace ? data.pets : [...prev, ...data.pets]));
         setTotal(data.total);
@@ -100,112 +97,77 @@ export function BrowseFeed({ pets }: BrowseFeedProps) {
         if (reqId === reqIdRef.current) setLoading(false);
       }
     },
-    [filters]
+    [filters],
   );
 
-  // Debounce — re-fetch from page 1 when filters change
+  // Debounced re-fetch on any filter change
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void fetchPage(1, true);
-    }, 250);
+    }, 220);
     return () => window.clearTimeout(timer);
   }, [fetchPage]);
 
   const visible = useMemo(
     () => results.filter((p) => !skippedIds.has(p.id)),
-    [results, skippedIds]
+    [results, skippedIds],
   );
 
   function onSkip(id: string) {
     setSkippedIds((s) => new Set(s).add(id));
   }
   function onSent(id: string) {
-    // Sent requests should also drop out of the candidate set
     setSkippedIds((s) => new Set(s).add(id));
+  }
+
+  /* ── Active-filter chips ──────────────────────────────────────────── */
+  const chips: ActiveChip[] = [];
+  if (filters.maxDistance !== DEFAULTS.maxDistance) {
+    chips.push({
+      id: "distance",
+      label:
+        filters.maxDistance === 500
+          ? "Any distance"
+          : `≤ ${filters.maxDistance} km`,
+      onRemove: () =>
+        setFilters((f) => ({ ...f, maxDistance: DEFAULTS.maxDistance })),
+    });
+  }
+  if (filters.minHealthScore > 0) {
+    chips.push({
+      id: "health",
+      label: `Health ${filters.minHealthScore}+`,
+      onRemove: () => setFilters((f) => ({ ...f, minHealthScore: 0 })),
+    });
+  }
+  if (filters.verifiedOnly) {
+    chips.push({
+      id: "verified",
+      label: "Live verified",
+      onRemove: () => setFilters((f) => ({ ...f, verifiedOnly: false })),
+    });
+  }
+  if (filters.breed.trim()) {
+    chips.push({
+      id: "breed",
+      label: `Breed: ${filters.breed.trim()}`,
+      onRemove: () => setFilters((f) => ({ ...f, breed: "" })),
+    });
+  }
+
+  function resetSecondaryFilters() {
+    setFilters((f) => ({
+      ...f,
+      maxDistance: DEFAULTS.maxDistance,
+      minHealthScore: 0,
+      verifiedOnly: false,
+      breed: "",
+    }));
   }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10 md:py-14">
-      <Header pets={pets} filters={filters} setFilters={setFilters} />
-
-      <FilterBar filters={filters} setFilters={setFilters} />
-
-      <div className="my-4 flex items-baseline justify-between text-sm text-dark-muted">
-        <span>
-          {loading && results.length === 0
-            ? "Searching…"
-            : `${visible.length} of ${total} candidate${total === 1 ? "" : "s"}`}
-        </span>
-        <SortControl
-          value={filters.sortBy}
-          onChange={(sortBy) => setFilters((f) => ({ ...f, sortBy }))}
-        />
-      </div>
-
-      {error && (
-        <p className="rounded-2xl bg-terracotta/10 px-4 py-3 text-center text-sm text-terracotta">
-          {error}
-        </p>
-      )}
-
-      {!loading && visible.length === 0 && !error ? (
-        <EmptyState
-          onReset={() =>
-            setFilters((f) => ({
-              ...f,
-              maxDistance: 500,
-              minHealthScore: 0,
-              verifiedOnly: false,
-              breed: "",
-            }))
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((p) => (
-            <MatchCard
-              key={p.id}
-              candidate={p}
-              myPetId={filters.petId}
-              onSkip={onSkip}
-              onSent={onSent}
-            />
-          ))}
-        </div>
-      )}
-
-      {hasMore && (
-        <div className="mt-10 flex justify-center">
-          <button
-            type="button"
-            onClick={() => void fetchPage(page + 1, false)}
-            disabled={loading}
-            className="btn-secondary"
-          >
-            {loading ? "Loading…" : "Load more"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── Header + pet switcher ──────────────────────────────────────────── */
-
-function Header({
-  pets,
-  filters,
-  setFilters,
-}: {
-  pets: UserPet[];
-  filters: FiltersState;
-  setFilters: React.Dispatch<React.SetStateAction<FiltersState>>;
-}) {
-  const activePet = pets.find((p) => p.id === filters.petId) ?? pets[0];
-
-  return (
-    <header className="mb-8 flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
-      <div>
+      <header className="mb-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-terracotta">
           Browse · Find a Match
         </p>
@@ -219,204 +181,104 @@ function Header({
         >
           Find a Match
         </h1>
-        <p className="mt-3 max-w-lg text-base text-dark-muted">
-          Matching for <strong className="text-dark">{activePet.name}</strong>{" "}
-          ({activePet.species === "DOG" ? "Dog" : "Cat"}).
-        </p>
-      </div>
+      </header>
 
-      {pets.length > 1 && (
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-dark-muted">Matching for:</span>
-          <select
-            value={filters.petId}
-            onChange={(e) => {
-              const next = pets.find((p) => p.id === e.target.value);
-              if (!next) return;
-              setFilters((f) => ({
-                ...f,
-                petId: next.id,
-                species: next.species,
-              }));
-            }}
-            className="rounded-full border border-sand bg-cream px-4 py-2 text-sm font-semibold text-dark focus:border-terracotta focus:outline-none focus:ring-2 focus:ring-terracotta/15"
-          >
-            {pets.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.species === "DOG" ? "Dog" : "Cat"})
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-    </header>
-  );
-}
-
-/* ─── Filter bar ─────────────────────────────────────────────────────── */
-
-function FilterBar({
-  filters,
-  setFilters,
-}: {
-  filters: FiltersState;
-  setFilters: React.Dispatch<React.SetStateAction<FiltersState>>;
-}) {
-  return (
-    <section className="rounded-3xl border border-sand bg-surface/60 p-4 md:p-5">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[auto_1fr_1fr_auto_auto] lg:items-center">
-        {/* Species toggle */}
-        <div className="inline-flex rounded-full bg-cream p-1 self-start">
-          {(["DOG", "CAT"] as Species[]).map((s) => {
-            const active = filters.species === s;
-            return (
-              <button
-                key={s}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setFilters((f) => ({ ...f, species: s }))}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
-                  active
-                    ? "bg-terracotta text-white"
-                    : "text-dark-muted hover:text-terracotta"
-                }`}
-              >
-                {s === "DOG" ? "Dogs" : "Cats"}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Distance slider */}
-        <SliderField
-          label="Max distance"
-          value={filters.maxDistance}
-          min={10}
-          max={500}
-          step={10}
-          format={(v) => `${v} km`}
-          onChange={(v) => setFilters((f) => ({ ...f, maxDistance: v }))}
-        />
-
-        {/* Health score slider */}
-        <SliderField
-          label="Min health score"
-          value={filters.minHealthScore}
-          min={0}
-          max={100}
-          step={5}
-          format={(v) => (v === 0 ? "any" : String(v))}
-          onChange={(v) => setFilters((f) => ({ ...f, minHealthScore: v }))}
-        />
-
-        {/* Verified toggle */}
-        <label className="inline-flex items-center gap-2 self-end justify-self-start text-sm text-dark-muted lg:self-center lg:justify-self-end">
-          <input
-            type="checkbox"
-            checked={filters.verifiedOnly}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, verifiedOnly: e.target.checked }))
-            }
-            className="h-4 w-4 rounded border-sand accent-terracotta"
-          />
-          Live verified only
-        </label>
-
-        {/* Breed search */}
-        <input
-          type="search"
-          placeholder="Breed…"
-          value={filters.breed}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, breed: e.target.value }))
+      <div className="mb-6">
+        <PetSelector
+          pets={pets}
+          activeId={filters.petId}
+          onChange={(p) =>
+            setFilters((f) => ({ ...f, petId: p.id, species: p.species }))
           }
-          className="w-full rounded-full border border-sand bg-cream px-4 py-2 text-sm text-dark outline-none transition-[border-color] duration-150 focus:border-terracotta focus:ring-2 focus:ring-terracotta/15 lg:max-w-[180px]"
         />
       </div>
-    </section>
-  );
-}
 
-function SliderField({
-  label,
-  value,
-  min,
-  max,
-  step,
-  format,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  format: (v: number) => string;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between text-xs text-dark-muted">
-        <span>{label}</span>
-        <span className="font-semibold text-dark">{format(value)}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-terracotta"
+      <FilterCard
+        species={filters.species}
+        onSpeciesChange={(species) => setFilters((f) => ({ ...f, species }))}
+        maxDistance={filters.maxDistance}
+        onMaxDistanceChange={(maxDistance) =>
+          setFilters((f) => ({ ...f, maxDistance }))
+        }
+        minHealthScore={filters.minHealthScore}
+        onMinHealthScoreChange={(minHealthScore) =>
+          setFilters((f) => ({ ...f, minHealthScore }))
+        }
+        verifiedOnly={filters.verifiedOnly}
+        onVerifiedOnlyChange={(verifiedOnly) =>
+          setFilters((f) => ({ ...f, verifiedOnly }))
+        }
+        breed={filters.breed}
+        onBreedChange={(breed) => setFilters((f) => ({ ...f, breed }))}
       />
-    </div>
-  );
-}
 
-/* ─── Sort + empty ──────────────────────────────────────────────────── */
+      <ActiveFiltersRow chips={chips} onClearAll={resetSecondaryFilters} />
 
-function SortControl({
-  value,
-  onChange,
-}: {
-  value: SortBy;
-  onChange: (v: SortBy) => void;
-}) {
-  return (
-    <label className="inline-flex items-center gap-2 text-xs text-dark-muted">
-      Sort
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as SortBy)}
-        className="rounded-full border border-sand bg-cream px-3 py-1.5 text-xs font-semibold text-dark focus:border-terracotta focus:outline-none focus:ring-2 focus:ring-terracotta/15"
-      >
-        <option value="best">Best match</option>
-        <option value="nearest">Nearest</option>
-        <option value="newest">Newest</option>
-      </select>
-    </label>
-  );
-}
-
-function EmptyState({ onReset }: { onReset: () => void }) {
-  return (
-    <div className="card flex flex-col items-center py-16 text-center">
-      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-sand text-2xl">
-        🔎
+      <div className="mt-7">
+        <ResultsHeader
+          visibleCount={visible.length}
+          totalCount={total}
+          loading={loading}
+          sortBy={filters.sortBy}
+          onSortChange={(sortBy) => setFilters((f) => ({ ...f, sortBy }))}
+        />
       </div>
-      <p
-        className="text-xl font-bold text-dark"
-        style={{ fontFamily: "var(--font-playfair, Georgia, serif)" }}
-      >
-        Nothing matches those filters
-      </p>
-      <p className="mt-2 max-w-sm text-sm text-dark-muted">
-        Try widening the distance, lowering the health score, or turning off
-        the verified-only filter.
-      </p>
-      <button type="button" onClick={onReset} className="btn-primary mt-6">
-        Reset filters
-      </button>
+
+      {error && (
+        <p className="mt-5 rounded-2xl bg-terracotta/10 px-4 py-3 text-center text-sm text-terracotta">
+          {error}
+        </p>
+      )}
+
+      {/* Results — preserve previous results at 40% opacity while loading */}
+      <div className="mt-5">
+        {!loading && visible.length === 0 && !error ? (
+          <EmptyMatches onReset={resetSecondaryFilters} />
+        ) : (
+          <motion.div
+            animate={{ opacity: loading && visible.length > 0 ? 0.4 : 1 }}
+            transition={{ duration: 0.18 }}
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            <AnimatePresence initial={false} mode="popLayout">
+              {visible.map((p, i) => (
+                <motion.div
+                  key={p.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{
+                    duration: 0.24,
+                    ease: [0.4, 0, 0.2, 1],
+                    delay: Math.min(i * 0.03, 0.18),
+                  }}
+                >
+                  <MatchCard
+                    candidate={p}
+                    myPetId={filters.petId}
+                    onSkip={onSkip}
+                    onSent={onSent}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </div>
+
+      {hasMore && (
+        <div className="mt-10 flex justify-center">
+          <button
+            type="button"
+            onClick={() => void fetchPage(page + 1, false)}
+            disabled={loading}
+            className="btn-secondary"
+          >
+            {loading ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
