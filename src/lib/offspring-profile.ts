@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 
 import type { Breed, Pet, PetTrait } from "@/generated/prisma";
 
@@ -25,6 +26,8 @@ import type { Breed, Pet, PetTrait } from "@/generated/prisma";
 
 const DEFAULT_MODEL =
   process.env.OFFSPRING_PROFILE_MODEL ?? "claude-sonnet-4-6";
+const GEMINI_MODEL =
+  process.env.OFFSPRING_PROFILE_GEMINI_MODEL ?? "gemini-2.5-flash";
 export const MAX_PROFILE_TOKENS = 1800;
 
 export interface ParentSnapshot {
@@ -144,20 +147,36 @@ export interface OffspringStreamResult {
 }
 
 /**
- * Stream a holistic offspring-profile prediction from Claude.
- * Returns a ReadableStream of UTF-8 text chunks plus a `done`
- * Promise that resolves with usage when the stream completes.
+ * Stream a holistic offspring-profile prediction.
+ *
+ * Provider selection (env-driven):
+ *   1. If ANTHROPIC_API_KEY is set, use Claude (best quality + caching).
+ *   2. Else if GEMINI_API_KEY is set, fall back to Gemini (free tier).
+ *   3. Else throw with a clear error.
+ *
+ * Returns a ReadableStream of UTF-8 text chunks + a `done` Promise that
+ * resolves with usage when the stream completes. Same contract from
+ * both providers so the UI doesn't know which one rendered.
  */
 export async function streamOffspringProfile(
   a: ParentSnapshot,
   b: ParentSnapshot,
 ): Promise<OffspringStreamResult> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error(
-      "ANTHROPIC_API_KEY missing — set it in .env.local to use the offspring profile predictor.",
-    );
+  if (process.env.ANTHROPIC_API_KEY) {
+    return streamWithClaude(a, b);
   }
+  if (process.env.GEMINI_API_KEY) {
+    return streamWithGemini(a, b);
+  }
+  throw new Error(
+    "No LLM key configured — set ANTHROPIC_API_KEY or GEMINI_API_KEY in .env.local.",
+  );
+}
 
+async function streamWithClaude(
+  a: ParentSnapshot,
+  b: ParentSnapshot,
+): Promise<OffspringStreamResult> {
   const client = new Anthropic();
   const userMessage = buildOffspringUserPrompt(a, b);
 
@@ -209,6 +228,82 @@ export async function streamOffspringProfile(
             (finalMessage.usage.cache_creation_input_tokens ?? 0),
           outputTokens: finalMessage.usage.output_tokens ?? 0,
         });
+      } catch (err) {
+        controller.error(err);
+        rejectDone(err);
+      }
+    },
+  });
+
+  return { readableStream, done };
+}
+
+/* ─── Gemini fallback ────────────────────────────────────────────────── */
+
+/**
+ * Gemini implementation of the same streaming contract. Used when
+ * ANTHROPIC_API_KEY is unset and GEMINI_API_KEY is set (the dev
+ * convenience path — free tier covers most usage). Gemini has its own
+ * SDK shape: `systemInstruction` instead of `system`, `contents` array
+ * with `role` + `parts`, and `generateContentStream()` returns an
+ * async iterable of chunks rather than an event emitter.
+ */
+async function streamWithGemini(
+  a: ParentSnapshot,
+  b: ParentSnapshot,
+): Promise<OffspringStreamResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY missing");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const userMessage = buildOffspringUserPrompt(a, b);
+
+  let resolveDone: (v: {
+    text: string;
+    inputTokens: number;
+    outputTokens: number;
+  }) => void = () => undefined;
+  let rejectDone: (e: unknown) => void = () => undefined;
+  const done = new Promise<{
+    text: string;
+    inputTokens: number;
+    outputTokens: number;
+  }>((resolve, reject) => {
+    resolveDone = resolve;
+    rejectDone = reject;
+  });
+
+  const readableStream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      let acc = "";
+      try {
+        const result = await ai.models.generateContentStream({
+          model: GEMINI_MODEL,
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: userMessage }],
+            },
+          ],
+          config: {
+            systemInstruction: SYSTEM_PROMPT,
+            maxOutputTokens: MAX_PROFILE_TOKENS,
+            temperature: 0.6,
+          },
+        });
+
+        for await (const chunk of result) {
+          const text = chunk.text;
+          if (typeof text === "string" && text.length > 0) {
+            acc += text;
+            controller.enqueue(encoder.encode(text));
+          }
+        }
+        controller.close();
+        resolveDone({ text: acc, inputTokens: 0, outputTokens: 0 });
       } catch (err) {
         controller.error(err);
         rejectDone(err);
