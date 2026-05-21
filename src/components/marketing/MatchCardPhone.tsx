@@ -3,9 +3,17 @@
 import Image from "next/image";
 
 const TERRA = "#C94B2A";
-const DARK = "#1C1008";
-const CREAM = "#F5EFE6";
 const VERIFIED = "#1D9E75";
+
+/** iPhone 16 Pro Max titanium bezel — vertical gradient stays dark in both themes */
+const BEZEL_GRADIENT =
+  "linear-gradient(180deg, #2A1F18 0%, #1C1208 35%, #100A06 65%, #1C1208 100%)";
+const BUTTON_COLOR = "#0F0905";
+
+// Theme-aware tokens (light → dark via globals.css [data-theme="dark"]):
+//   var(--color-surface)     — white   → #261810
+//   var(--color-dark)        — #1C1008 → #F5EFE6 (primary text)
+//   var(--color-dark-muted)  — #3D2A1A → rgba(245,239,230,.65)
 
 /**
  * Section-3 phone mockup variant.
@@ -25,8 +33,9 @@ export function MatchCardPhone() {
     <div className="relative mx-auto" style={{ width: 320 }}>
       {/* Score circle */}
       <div
-        className="absolute -right-3 top-12 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-white"
+        className="absolute -right-3 top-12 z-30 flex h-14 w-14 items-center justify-center rounded-full"
         style={{
+          background: "var(--color-surface)",
           border: `2.5px solid ${TERRA}`,
           boxShadow: "0 8px 20px -8px rgba(28,16,8,0.25)",
           fontFamily: "var(--font-playfair, Georgia, serif)",
@@ -36,31 +45,64 @@ export function MatchCardPhone() {
         <span className="text-xl font-black">92</span>
       </div>
 
-      {/* Phone frame */}
+      {/* iPhone 16 Pro Max frame — 9:19.5 aspect ratio (77.6mm × 163mm) */}
       <div
         className="relative"
         style={{
-          background: DARK,
-          borderRadius: 38,
-          padding: 10,
-          boxShadow: "0 40px 60px -25px rgba(28,16,8,0.45)",
+          background: BEZEL_GRADIENT,
+          borderRadius: 44,
+          padding: 4,
+          aspectRatio: "9 / 19.5",
+          boxShadow:
+            "0 40px 60px -25px rgba(28,16,8,0.45), inset 0 0 0 1.5px rgba(255,255,255,0.07)",
         }}
       >
+        {/* ── Side buttons (titanium frame detail) ────────────────── */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          style={{ left: -2, top: "17%", width: 3, height: "3.6%", background: BUTTON_COLOR, borderRadius: 2 }}
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          style={{ left: -2, top: "23%", width: 3, height: "7.5%", background: BUTTON_COLOR, borderRadius: 2 }}
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          style={{ left: -2, top: "32%", width: 3, height: "7.5%", background: BUTTON_COLOR, borderRadius: 2 }}
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          style={{ right: -2, top: "21%", width: 3, height: "11%", background: BUTTON_COLOR, borderRadius: 2 }}
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          style={{ right: -2, top: "35%", width: 3, height: "4.5%", background: BUTTON_COLOR, borderRadius: 2 }}
+        />
+
         <div
-          className="relative overflow-hidden"
-          style={{ background: CREAM, borderRadius: 30 }}
+          className="relative h-full overflow-hidden"
+          style={{ background: "var(--color-surface)", borderRadius: 40 }}
         >
-          {/* Notch */}
+          {/* Dynamic Island */}
           <div
-            className="pointer-events-none absolute left-1/2 top-2 z-10 h-5 w-24 -translate-x-1/2 rounded-full"
-            style={{ background: DARK }}
+            className="pointer-events-none absolute left-1/2 top-[10px] z-10 h-[26px] w-[105px] -translate-x-1/2 rounded-full"
+            style={{
+              background: "#000",
+              boxShadow: "inset 0 1px 2px rgba(255,255,255,0.05)",
+            }}
+            aria-hidden="true"
           />
 
-          <div className="relative flex flex-col gap-3 p-4 pt-9">
+          <div className="relative flex h-full flex-col gap-3 p-4 pt-12">
             {/* Pet photo with overlays */}
             <div
               className="relative overflow-hidden"
-              style={{ borderRadius: 12, height: 220 }}
+              style={{ borderRadius: 16, height: 380 }}
             >
               <Image
                 src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop&crop=face"
@@ -140,7 +182,7 @@ export function MatchCardPhone() {
               style={{
                 fontFamily: "var(--font-inter, system-ui, sans-serif)",
                 fontSize: 11,
-                color: DARK,
+                color: "var(--color-dark)",
               }}
             >
               <span>7 health records · 4 verified</span>
@@ -170,7 +212,7 @@ export function MatchCardPhone() {
                 style={{
                   fontFamily: "var(--font-inter, system-ui, sans-serif)",
                   fontSize: 13,
-                  color: DARK,
+                  color: "var(--color-dark)",
                 }}
               >
                 <strong style={{ color: TERRA, fontWeight: 700 }}>
@@ -183,7 +225,7 @@ export function MatchCardPhone() {
                 style={{
                   fontFamily: "var(--font-inter, system-ui, sans-serif)",
                   fontSize: 13,
-                  color: DARK,
+                  color: "var(--color-dark)",
                   marginTop: 2,
                 }}
               >
