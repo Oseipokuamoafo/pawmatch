@@ -1,10 +1,11 @@
 /**
  * Seed breed reference data for PawMatch.
  *
- * 15 dog + 8 cat breeds. Each row carries realistic averageCOI ranges
- * (2–8% for healthy populations), conservative minimum breeding ages
- * per sex (months), and a few well-known recessive markers that the
- * scoring engine watches for.
+ * 23 dog + 11 cat breeds = 34 total. Each row carries realistic
+ * averageCOI ranges (2–8% for healthy populations), conservative
+ * minimum breeding ages per sex (months), well-known recessive
+ * markers that the scoring engine watches for, plus the Phase 3
+ * directory metadata (hero photo, temperament, lifespan, weight).
  *
  * Idempotent: uses upsert on the (name, species) unique constraint so
  * re-running won't duplicate.
@@ -17,6 +18,16 @@ import { PrismaClient, Species } from "../src/generated/prisma";
 
 const prisma = new PrismaClient();
 
+const unsplash = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?w=1200&q=80&fit=crop`;
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
 interface BreedSeed {
   name: string;
   species: Species;
@@ -26,6 +37,12 @@ interface BreedSeed {
   minBreedingAgeFemale: number; // months
   commonRecessiveGenes: string[];
   description?: string;
+  heroImageUrl?: string;
+  temperament?: string[];
+  lifespanMinYears?: number;
+  lifespanMaxYears?: number;
+  weightKgMin?: number;
+  weightKgMax?: number;
 }
 
 const DOG_BREEDS: BreedSeed[] = [
@@ -38,6 +55,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["PRA-prcd", "ICT-A", "MD"],
     description: "Friendly family breed; screen for hip dysplasia and cancer risk.",
+    heroImageUrl: unsplash("1552053831-71594a27632d"),
+    temperament: ["Friendly", "Intelligent", "Devoted"],
+    lifespanMinYears: 10,
+    lifespanMaxYears: 12,
+    weightKgMin: 25,
+    weightKgMax: 34,
   },
   {
     name: "Labrador Retriever",
@@ -47,6 +70,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 14,
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["EIC", "CNM", "PRA-prcd"],
+    heroImageUrl: unsplash("1583337130417-3346a1be7dee"),
+    temperament: ["Outgoing", "Active", "Even-tempered"],
+    lifespanMinYears: 10,
+    lifespanMaxYears: 12,
+    weightKgMin: 25,
+    weightKgMax: 36,
   },
   {
     name: "French Bulldog",
@@ -57,6 +86,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["DM", "HUU", "Cystinuria type III"],
     description: "Brachycephalic — heat sensitivity and breathing checks recommended.",
+    heroImageUrl: unsplash("1583511655857-d19b40a7a54e"),
+    temperament: ["Playful", "Adaptable", "Affectionate"],
+    lifespanMinYears: 10,
+    lifespanMaxYears: 12,
+    weightKgMin: 8,
+    weightKgMax: 13,
   },
   {
     name: "German Shepherd",
@@ -66,6 +101,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 18,
     minBreedingAgeFemale: 24,
     commonRecessiveGenes: ["DM", "MDR1", "Hyperuricosuria"],
+    heroImageUrl: unsplash("1568393691622-c7ba131d63b4"),
+    temperament: ["Loyal", "Courageous", "Confident"],
+    lifespanMinYears: 9,
+    lifespanMaxYears: 13,
+    weightKgMin: 22,
+    weightKgMax: 40,
   },
   {
     name: "Poodle",
@@ -75,6 +116,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 14,
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["PRA-prcd", "vWD type I"],
+    heroImageUrl: unsplash("1517423440428-a5a00ad493e8"),
+    temperament: ["Intelligent", "Active", "Alert"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 20,
+    weightKgMax: 32,
   },
   {
     name: "Beagle",
@@ -84,6 +131,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 12,
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["MLS", "NCCD", "Lafora"],
+    heroImageUrl: unsplash("1612536057832-2ff7ead58194"),
+    temperament: ["Curious", "Merry", "Friendly"],
+    lifespanMinYears: 10,
+    lifespanMaxYears: 15,
+    weightKgMin: 9,
+    weightKgMax: 11,
   },
   {
     name: "Bulldog",
@@ -94,6 +147,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeFemale: 24,
     commonRecessiveGenes: ["HUU", "Cystinuria", "DM"],
     description: "High COI population; outcross strategies strongly recommended.",
+    heroImageUrl: unsplash("1605568427561-40dd23c2acea"),
+    temperament: ["Calm", "Courageous", "Friendly"],
+    lifespanMinYears: 8,
+    lifespanMaxYears: 10,
+    weightKgMin: 18,
+    weightKgMax: 23,
   },
   {
     name: "Rottweiler",
@@ -103,6 +162,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 24,
     minBreedingAgeFemale: 24,
     commonRecessiveGenes: ["JLPP", "LAD III"],
+    heroImageUrl: unsplash("1543466835-00a7907e9de1"),
+    temperament: ["Confident", "Loyal", "Steady"],
+    lifespanMinYears: 8,
+    lifespanMaxYears: 10,
+    weightKgMin: 36,
+    weightKgMax: 60,
   },
   {
     name: "Yorkshire Terrier",
@@ -112,6 +177,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 12,
     minBreedingAgeFemale: 15,
     commonRecessiveGenes: ["PRA-prcd", "PLN"],
+    heroImageUrl: unsplash("1561037404-61cd46aa615b"),
+    temperament: ["Affectionate", "Sprightly", "Brave"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 2,
+    weightKgMax: 3.5,
   },
   {
     name: "Dachshund",
@@ -121,6 +192,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 12,
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["cord1-PRA", "Lafora", "CDDY/IVDD"],
+    heroImageUrl: unsplash("1587300003388-59208cc962cb"),
+    temperament: ["Spunky", "Clever", "Devoted"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 16,
+    weightKgMin: 7,
+    weightKgMax: 14,
   },
   {
     name: "Siberian Husky",
@@ -130,6 +207,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 18,
     minBreedingAgeFemale: 24,
     commonRecessiveGenes: ["GM1", "HUU"],
+    heroImageUrl: unsplash("1525253013412-55c1a69a5738"),
+    temperament: ["Outgoing", "Mischievous", "Athletic"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 16,
+    weightKgMax: 27,
   },
   {
     name: "Shih Tzu",
@@ -139,6 +222,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 12,
     minBreedingAgeFemale: 15,
     commonRecessiveGenes: ["PRA-prcd", "PLN", "Cystinuria"],
+    heroImageUrl: unsplash("1583511655802-41d089bf2c0e"),
+    temperament: ["Affectionate", "Outgoing", "Playful"],
+    lifespanMinYears: 10,
+    lifespanMaxYears: 16,
+    weightKgMin: 4,
+    weightKgMax: 7,
   },
   {
     name: "Doberman Pinscher",
@@ -148,6 +237,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 18,
     minBreedingAgeFemale: 24,
     commonRecessiveGenes: ["DCM1", "DCM2", "vWD type I"],
+    heroImageUrl: unsplash("1605559424843-9e4c228bf1c2"),
+    temperament: ["Loyal", "Fearless", "Alert"],
+    lifespanMinYears: 10,
+    lifespanMaxYears: 12,
+    weightKgMin: 27,
+    weightKgMax: 45,
   },
   {
     name: "Border Collie",
@@ -157,6 +252,12 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 18,
     minBreedingAgeFemale: 24,
     commonRecessiveGenes: ["CEA", "TNS", "MDR1", "CL"],
+    heroImageUrl: unsplash("1503256207526-0d5d80fa2f47"),
+    temperament: ["Tireless", "Smart", "Energetic"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 14,
+    weightKgMax: 20,
   },
   {
     name: "Cavalier King Charles Spaniel",
@@ -167,6 +268,136 @@ const DOG_BREEDS: BreedSeed[] = [
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["EFS", "CC/DE", "Curly Coat"],
     description: "Screen for mitral valve disease and syringomyelia.",
+    heroImageUrl: unsplash("1591946614720-90a587da4a36"),
+    temperament: ["Gentle", "Affectionate", "Graceful"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 6,
+    weightKgMax: 8,
+  },
+  // ── Phase 3 additions: 8 more dog breeds ─────────────────────────
+  {
+    name: "Australian Shepherd",
+    species: "DOG",
+    group: "Herding",
+    averageCOI: 4.6,
+    minBreedingAgeMale: 18,
+    minBreedingAgeFemale: 24,
+    commonRecessiveGenes: ["MDR1", "CEA", "HSF4"],
+    heroImageUrl: unsplash("1568572933382-74d440642117"),
+    temperament: ["Smart", "Work-oriented", "Exuberant"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 18,
+    weightKgMax: 32,
+  },
+  {
+    name: "Boxer",
+    species: "DOG",
+    group: "Working",
+    averageCOI: 6.4,
+    minBreedingAgeMale: 24,
+    minBreedingAgeFemale: 24,
+    commonRecessiveGenes: ["ARVC", "DM"],
+    heroImageUrl: unsplash("1597633425046-08f5110420b5"),
+    temperament: ["Bright", "Fun-loving", "Active"],
+    lifespanMinYears: 10,
+    lifespanMaxYears: 12,
+    weightKgMin: 25,
+    weightKgMax: 32,
+  },
+  {
+    name: "Cocker Spaniel",
+    species: "DOG",
+    group: "Sporting",
+    averageCOI: 5.4,
+    minBreedingAgeMale: 14,
+    minBreedingAgeFemale: 18,
+    commonRecessiveGenes: ["prcd-PRA", "FNI", "AMS"],
+    heroImageUrl: unsplash("1623387641168-d9803ddd3f35"),
+    temperament: ["Gentle", "Smart", "Happy"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 9,
+    weightKgMax: 14,
+  },
+  {
+    name: "Great Dane",
+    species: "DOG",
+    group: "Working",
+    averageCOI: 5.8,
+    minBreedingAgeMale: 24,
+    minBreedingAgeFemale: 30,
+    commonRecessiveGenes: ["DCM", "Wobbler", "Bloat-risk markers"],
+    description: "Giant breed — screen for cardiac and gastric concerns; conservative breeding age critical.",
+    heroImageUrl: unsplash("1567014543648-e4391c989aab"),
+    temperament: ["Friendly", "Patient", "Dependable"],
+    lifespanMinYears: 7,
+    lifespanMaxYears: 10,
+    weightKgMin: 45,
+    weightKgMax: 90,
+  },
+  {
+    name: "Pembroke Welsh Corgi",
+    species: "DOG",
+    group: "Herding",
+    averageCOI: 5.7,
+    minBreedingAgeMale: 15,
+    minBreedingAgeFemale: 18,
+    commonRecessiveGenes: ["DM", "vWD"],
+    heroImageUrl: unsplash("1612536057832-2ff7ead58194"),
+    temperament: ["Affectionate", "Smart", "Alert"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 13,
+    weightKgMin: 10,
+    weightKgMax: 14,
+  },
+  {
+    name: "Shiba Inu",
+    species: "DOG",
+    group: "Non-Sporting",
+    averageCOI: 5.1,
+    minBreedingAgeMale: 18,
+    minBreedingAgeFemale: 24,
+    commonRecessiveGenes: ["GM1", "PRA-rcd1a"],
+    heroImageUrl: unsplash("1583337130417-3346a1be7dee"),
+    temperament: ["Alert", "Bold", "Spirited"],
+    lifespanMinYears: 13,
+    lifespanMaxYears: 16,
+    weightKgMin: 7,
+    weightKgMax: 10,
+  },
+  {
+    name: "Bernese Mountain Dog",
+    species: "DOG",
+    group: "Working",
+    averageCOI: 6.5,
+    minBreedingAgeMale: 24,
+    minBreedingAgeFemale: 24,
+    commonRecessiveGenes: ["DM", "vWD type I", "Histiocytic sarcoma markers"],
+    description: "Strong cancer predisposition — careful pedigree review before pairing.",
+    heroImageUrl: unsplash("1568572933382-74d440642117"),
+    temperament: ["Good-natured", "Calm", "Strong"],
+    lifespanMinYears: 7,
+    lifespanMaxYears: 10,
+    weightKgMin: 32,
+    weightKgMax: 52,
+  },
+  {
+    name: "Pug",
+    species: "DOG",
+    group: "Toy",
+    averageCOI: 7.6,
+    minBreedingAgeMale: 14,
+    minBreedingAgeFemale: 18,
+    commonRecessiveGenes: ["PDE", "DM", "Brachycephalic markers"],
+    description: "Brachycephalic — respiratory and eye checks essential.",
+    heroImageUrl: unsplash("1583511655802-41d089bf2c0e"),
+    temperament: ["Charming", "Mischievous", "Loving"],
+    lifespanMinYears: 13,
+    lifespanMaxYears: 15,
+    weightKgMin: 6,
+    weightKgMax: 8,
   },
 ];
 
@@ -180,6 +411,12 @@ const CAT_BREEDS: BreedSeed[] = [
     minBreedingAgeFemale: 14,
     commonRecessiveGenes: ["PKD1", "PRA-rdAc"],
     description: "Brachycephalic — screen for breathing and tear-duct issues.",
+    heroImageUrl: unsplash("1574144611937-0df059b5ef3e"),
+    temperament: ["Gentle", "Quiet", "Affectionate"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 17,
+    weightKgMin: 3,
+    weightKgMax: 5.5,
   },
   {
     name: "Maine Coon",
@@ -189,6 +426,12 @@ const CAT_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 14,
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["HCM-MC", "SMA", "PK-Def"],
+    heroImageUrl: unsplash("1592194996308-7b43878e84a6"),
+    temperament: ["Gentle giant", "Friendly", "Adaptable"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 4.5,
+    weightKgMax: 11,
   },
   {
     name: "Siamese",
@@ -198,6 +441,12 @@ const CAT_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 10,
     minBreedingAgeFemale: 12,
     commonRecessiveGenes: ["PRA-rdAc", "GM1", "GM2"],
+    heroImageUrl: unsplash("1533743983669-94fa5c4338ec"),
+    temperament: ["Vocal", "Intelligent", "Social"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 20,
+    weightKgMin: 3,
+    weightKgMax: 5,
   },
   {
     name: "Bengal",
@@ -207,6 +456,12 @@ const CAT_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 12,
     minBreedingAgeFemale: 14,
     commonRecessiveGenes: ["PRA-b", "PK-Def"],
+    heroImageUrl: unsplash("1514888286974-6c03e2ca1dba"),
+    temperament: ["Athletic", "Curious", "Confident"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 16,
+    weightKgMin: 3.5,
+    weightKgMax: 7,
   },
   {
     name: "Ragdoll",
@@ -216,6 +471,12 @@ const CAT_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 14,
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["HCM-RD", "PK-Def"],
+    heroImageUrl: unsplash("1574144611937-0df059b5ef3e"),
+    temperament: ["Docile", "Placid", "Affectionate"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 17,
+    weightKgMin: 4.5,
+    weightKgMax: 9,
   },
   {
     name: "British Shorthair",
@@ -225,6 +486,12 @@ const CAT_BREEDS: BreedSeed[] = [
     minBreedingAgeMale: 14,
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["HCM", "PKD1"],
+    heroImageUrl: unsplash("1592194996308-7b43878e84a6"),
+    temperament: ["Calm", "Patient", "Affectionate"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 4,
+    weightKgMax: 8,
   },
   {
     name: "Sphynx",
@@ -235,6 +502,12 @@ const CAT_BREEDS: BreedSeed[] = [
     minBreedingAgeFemale: 14,
     commonRecessiveGenes: ["HCM", "CMS"],
     description: "Hairless — extra care for skin and temperature regulation.",
+    heroImageUrl: unsplash("1514888286974-6c03e2ca1dba"),
+    temperament: ["Energetic", "Friendly", "Mischievous"],
+    lifespanMinYears: 8,
+    lifespanMaxYears: 14,
+    weightKgMin: 3,
+    weightKgMax: 5,
   },
   {
     name: "Scottish Fold",
@@ -245,6 +518,58 @@ const CAT_BREEDS: BreedSeed[] = [
     minBreedingAgeFemale: 18,
     commonRecessiveGenes: ["OCD/Fd", "PKD1"],
     description: "Fold gene linked to osteochondrodysplasia — fold×straight only.",
+    heroImageUrl: unsplash("1533743983669-94fa5c4338ec"),
+    temperament: ["Sweet", "Adaptable", "Soft-voiced"],
+    lifespanMinYears: 11,
+    lifespanMaxYears: 14,
+    weightKgMin: 3,
+    weightKgMax: 6,
+  },
+  // ── Phase 3 additions: 3 more cat breeds ─────────────────────────
+  {
+    name: "Abyssinian",
+    species: "CAT",
+    group: "Shorthair",
+    averageCOI: 4.8,
+    minBreedingAgeMale: 12,
+    minBreedingAgeFemale: 14,
+    commonRecessiveGenes: ["PK-Def", "PRA-rdAc", "PKD1"],
+    heroImageUrl: unsplash("1574231164645-d6f0e8553590"),
+    temperament: ["Active", "Curious", "Playful"],
+    lifespanMinYears: 12,
+    lifespanMaxYears: 15,
+    weightKgMin: 3,
+    weightKgMax: 5,
+  },
+  {
+    name: "Russian Blue",
+    species: "CAT",
+    group: "Shorthair",
+    averageCOI: 5.2,
+    minBreedingAgeMale: 12,
+    minBreedingAgeFemale: 14,
+    commonRecessiveGenes: ["HCM"],
+    heroImageUrl: unsplash("1592194996308-7b43878e84a6"),
+    temperament: ["Reserved", "Gentle", "Loyal"],
+    lifespanMinYears: 15,
+    lifespanMaxYears: 20,
+    weightKgMin: 3,
+    weightKgMax: 5.5,
+  },
+  {
+    name: "Norwegian Forest Cat",
+    species: "CAT",
+    group: "Longhair",
+    averageCOI: 4.4,
+    minBreedingAgeMale: 14,
+    minBreedingAgeFemale: 18,
+    commonRecessiveGenes: ["GSD IV", "HCM"],
+    heroImageUrl: unsplash("1574144611937-0df059b5ef3e"),
+    temperament: ["Sweet-tempered", "Hardy", "Independent"],
+    lifespanMinYears: 14,
+    lifespanMaxYears: 16,
+    weightKgMin: 4,
+    weightKgMax: 9,
   },
 ];
 
@@ -252,26 +577,26 @@ async function main() {
   const all = [...DOG_BREEDS, ...CAT_BREEDS];
 
   for (const b of all) {
+    const slug = slugify(b.name);
+    const shared = {
+      group: b.group ?? null,
+      averageCOI: b.averageCOI,
+      minBreedingAgeMale: b.minBreedingAgeMale,
+      minBreedingAgeFemale: b.minBreedingAgeFemale,
+      commonRecessiveGenes: b.commonRecessiveGenes,
+      description: b.description ?? null,
+      heroImageUrl: b.heroImageUrl ?? null,
+      temperament: b.temperament ?? [],
+      lifespanMinYears: b.lifespanMinYears ?? null,
+      lifespanMaxYears: b.lifespanMaxYears ?? null,
+      weightKgMin: b.weightKgMin ?? null,
+      weightKgMax: b.weightKgMax ?? null,
+    };
+
     await prisma.breed.upsert({
       where: { name_species: { name: b.name, species: b.species } },
-      create: {
-        name: b.name,
-        species: b.species,
-        group: b.group ?? null,
-        averageCOI: b.averageCOI,
-        minBreedingAgeMale: b.minBreedingAgeMale,
-        minBreedingAgeFemale: b.minBreedingAgeFemale,
-        commonRecessiveGenes: b.commonRecessiveGenes,
-        description: b.description ?? null,
-      },
-      update: {
-        group: b.group ?? null,
-        averageCOI: b.averageCOI,
-        minBreedingAgeMale: b.minBreedingAgeMale,
-        minBreedingAgeFemale: b.minBreedingAgeFemale,
-        commonRecessiveGenes: b.commonRecessiveGenes,
-        description: b.description ?? null,
-      },
+      create: { name: b.name, species: b.species, slug, ...shared },
+      update: { slug, ...shared },
     });
   }
 

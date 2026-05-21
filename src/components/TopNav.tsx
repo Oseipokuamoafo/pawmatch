@@ -50,6 +50,7 @@ export async function TopNav() {
           <div className="flex items-center gap-1 sm:gap-2">
             <NavLink href="/dashboard">My pets</NavLink>
             <NavLink href="/browse">Browse</NavLink>
+            <NavLink href="/breeds">Breeds</NavLink>
             <NavBadgeLink href="/matches" source="pendingMatches">
               Matches
             </NavBadgeLink>

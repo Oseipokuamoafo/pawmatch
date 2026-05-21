@@ -99,7 +99,13 @@ export default async function PetDetailPage(ctx: Ctx) {
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <SexChip sex={pet.sex} />
-              <Chip>{pet.breed}</Chip>
+              <Link
+                href={`/breeds/${pet.breed.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`}
+                className="inline-flex items-center rounded-pill bg-sand px-3 py-1 text-sm font-medium text-dark transition-colors hover:bg-terracotta/15 hover:text-terracotta"
+                title={`View ${pet.breed} breed page`}
+              >
+                {pet.breed}
+              </Link>
               <Chip>{calculateAge(pet.dateOfBirth)}</Chip>
               {pet.color && <Chip>{pet.color}</Chip>}
               {pet.weight && <Chip>{pet.weight} kg</Chip>}

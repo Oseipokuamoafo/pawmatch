@@ -280,6 +280,7 @@ model Contract {
 model Breed {
   id                   String   @id @default(cuid())
   name                 String
+  slug                 String?  @unique
   species              Species
   group                String?
   averageCOI           Float?
@@ -288,8 +289,21 @@ model Breed {
   minBreedingAgeFemale Int?
   description          String?
 
+  // Phase 3 additions
+  heroImageUrl         String?
+  temperament          String[]
+  lifespanMinYears     Int?
+  lifespanMaxYears     Int?
+  weightKgMin          Float?
+  weightKgMax          Float?
+  // Phase 4: real pedigree intelligence (Wright's path coefficients,
+  // founder distribution, etc.). For now this is a JSON stub so the
+  // model is ready when the data arrives.
+  pedigreePlaceholder  Json?
+
   @@unique([name, species])
   @@index([species])
+  @@index([slug])
 }
 
 model Report {
