@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { useToast } from "@/components/toast/ToastProvider";
@@ -182,10 +183,18 @@ export function BreedingAssistant({
             questions about responsible mating, genetic risk, and litter
             planning.
           </p>
-          <span className="mt-6 inline-flex items-center gap-2 rounded-full bg-terracotta/10 px-4 py-2 text-sm font-semibold text-terracotta">
-            <LockIcon className="h-3.5 w-3.5" />
-            Unlocks with Pro+ ($19.99/mo)
-          </span>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/pricing"
+              className="btn-primary inline-flex items-center gap-2 !py-2.5 !text-sm"
+            >
+              <LockIcon className="h-3.5 w-3.5" />
+              Unlock with Pro+
+            </Link>
+            <span className="text-[12px] text-dark-muted">
+              $19.99 / month · cancel anytime
+            </span>
+          </div>
         </div>
       </section>
     );

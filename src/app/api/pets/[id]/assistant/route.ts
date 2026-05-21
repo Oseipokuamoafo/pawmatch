@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isBreedingAssistantEnabled } from "@/lib/feature-flags";
+import { hasProPlusAccess } from "@/lib/billing";
 import { summarizeHeat } from "@/lib/heat";
 import {
   buildSystemPrompt,
@@ -91,7 +91,7 @@ export async function POST(req: Request, ctx: Ctx) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!isBreedingAssistantEnabled()) {
+  if (!(await hasProPlusAccess(session.user.id))) {
     return NextResponse.json(
       { error: "Breeding assistant is a Pro+ feature." },
       { status: 402 },

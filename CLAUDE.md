@@ -317,9 +317,29 @@ New features must integrate with existing code, not replace it.
 - Breed database (30+ breeds with full pedigree placeholders)
 - Heat cycle tracking
 - Vet checkup history
+- [x] **Stripe + Pro+ tier ($19.99/mo)** — `Subscription` model 1:1
+  with User mirroring Stripe's status enum verbatim;
+  `stripeCustomerId` cached on User for fast lookups before the
+  first sub exists. `lib/billing.ts:hasProPlusAccess(userId)` is
+  the single source of truth for entitlement — reads from the DB,
+  never Stripe directly. `/api/billing/checkout` lazily creates the
+  Stripe Customer (idempotent) + opens a Checkout Session;
+  `/api/billing/portal` opens the Customer Portal for cancel/card/
+  invoices. `/api/billing/webhook` is the only writer of
+  `Subscription` rows — raw-body signature verification with
+  `STRIPE_WEBHOOK_SECRET`, idempotent upsert keyed on
+  `stripeSubscriptionId`, handles `customer.subscription.{created,
+  updated,deleted}` + logs `invoice.payment_failed`. Public
+  `/pricing` page with Free vs Pro+ table; `/dashboard/billing`
+  post-checkout landing with portal entry; profile dropdown gets
+  a "Billing & plan" entry. Assistant gate flipped from env-flag
+  to `hasProPlusAccess` (dev override via
+  `FEATURE_BREEDING_ASSISTANT=on` documented). Tests cover the
+  entitlement matrix (active/trialing/canceled/past-due/paused/
+  incomplete + cancel-at-period-end + boundary cases). Dev flow:
+  `stripe listen --forward-to localhost:3142/api/billing/webhook`.
 - React Native + Expo mobile app
 - Push notifications (Firebase FCM)
-- Stripe freemium monetization
 - **PawServices** — pet service marketplace + booking
 - **PawSocial** — pet influencer profiles
 
