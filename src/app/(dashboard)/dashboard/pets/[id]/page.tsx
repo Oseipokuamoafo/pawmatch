@@ -4,6 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateAge } from "@/lib/utils/age";
+import { isBreedingAssistantEnabled } from "@/lib/feature-flags";
+import { BreedingAssistant } from "@/components/assistant/BreedingAssistant";
 import { HeatCyclesSection } from "@/components/heat/HeatCyclesSection";
 import { PhotoGallery } from "@/components/pets/PhotoGallery";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
@@ -314,6 +316,15 @@ export default async function PetDetailPage(ctx: Ctx) {
           </ul>
         )}
       </section>
+
+      <SectionRule />
+
+      {/* ── Claude API breeding assistant (Phase 4) ────────────────────── */}
+      <BreedingAssistant
+        petId={pet.id}
+        petName={pet.name}
+        enabled={isBreedingAssistantEnabled()}
+      />
 
       <SectionRule />
 

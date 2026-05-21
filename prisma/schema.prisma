@@ -203,6 +203,7 @@ model Pet {
   heatCycles      HeatCycle[]
   sentMatches     Match[]        @relation("PetAMatches")
   receivedMatches Match[]        @relation("PetBMatches")
+  breedingChat    BreedingChat?
 
   @@index([ownerId])
   @@index([species])
@@ -413,4 +414,39 @@ model VerificationRequest {
   createdAt          DateTime           @default(now())
 
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// One Claude-API-backed breeding-assistant thread per pet. The pet's
+/// health + DNA + breed profile is rebuilt into the system prompt on
+/// every request (cacheable prefix), so we only persist user/assistant
+/// turns here. Cascading delete with the pet.
+model BreedingChat {
+  id            String                @id @default(cuid())
+  petId         String                @unique
+  /// Total turns sent so far — used to enforce per-thread limits.
+  turnCount     Int                   @default(0)
+  /// Best-effort token totals (input + output) for cost tracking.
+  inputTokens   Int                   @default(0)
+  outputTokens  Int                   @default(0)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  pet           Pet                   @relation(fields: [petId], references: [id], onDelete: Cascade)
+  messages      BreedingChatMessage[]
+
+  @@index([petId])
+}
+
+model BreedingChatMessage {
+  id        String       @id @default(cuid())
+  chatId    String
+  /// "user" or "assistant" — matches Anthropic Messages API roles.
+  role      String
+  content   String       @db.Text
+  createdAt DateTime     @default(now())
+
+  chat      BreedingChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([createdAt])
 }
