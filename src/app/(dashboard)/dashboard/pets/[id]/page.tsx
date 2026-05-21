@@ -32,6 +32,25 @@ export default async function PetDetailPage(ctx: Ctx) {
   if (!pet) notFound();
   if (pet.ownerId !== session.user.id) notFound();
 
+  // Other pets owned by the same user — used to power "Predict litter with…"
+  const otherPets = await prisma.pet.findMany({
+    where: { ownerId: session.user.id, id: { not: id }, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      breed: true,
+      sex: true,
+      dateOfBirth: true,
+      livePhotoUrl: true,
+      photos: {
+        where: { isPrimary: true },
+        select: { url: true },
+        take: 1,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
   const galleryUrls = pet.photos.map((p) => p.url);
   const heroUrl =
     pet.photos.find((p) => p.isPrimary)?.url ??
@@ -133,6 +152,15 @@ export default async function PetDetailPage(ctx: Ctx) {
               <Link href={`/dashboard/pets/${pet.id}/health/new`} className="btn-secondary">
                 Add health record
               </Link>
+              {otherPets.length > 0 && (
+                <a
+                  href="#predict-litter"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-pill border border-terracotta/30 bg-terracotta/5 px-4 py-2 text-sm font-semibold text-terracotta transition-all hover:border-terracotta/60 hover:bg-terracotta/10"
+                >
+                  <span aria-hidden="true">🧬</span>
+                  Predict litter
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -207,6 +235,66 @@ export default async function PetDetailPage(ctx: Ctx) {
           </div>
         )}
       </Section>
+
+      <SectionRule />
+
+      {/* ── Predict litter (cross-breed predictor) ─────────────────────── */}
+      <section id="predict-litter" className="mx-auto max-w-6xl px-6 py-12 md:py-16 scroll-mt-24">
+        <header className="mb-8 max-w-2xl">
+          <p className="eyebrow">Genetics</p>
+          <h2 className="mt-3 font-serif text-3xl md:text-4xl font-bold leading-tight tracking-tight">
+            Predict litter
+          </h2>
+          <p className="mt-3 text-dark-muted leading-relaxed">
+            Run a Punnett-square prediction between {pet.name} and any of
+            your other pets. Health markers are scored and risky shared
+            recessives are flagged automatically.
+          </p>
+        </header>
+        {otherPets.length === 0 ? (
+          <EmptyState
+            title="Need a second pet to compare"
+            copy="Add another pet to your account, then come back here to predict a cross."
+            cta={{ href: "/dashboard/pets/new", label: "Add another pet" }}
+          />
+        ) : (
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {otherPets.map((p) => {
+              const photo = p.photos[0]?.url ?? p.livePhotoUrl;
+              return (
+                <li key={p.id}>
+                  <Link
+                    href={`/predict?a=${pet.id}&b=${p.id}`}
+                    className="card card-hover flex items-center gap-4"
+                  >
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-sand">
+                      {photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photo} alt={p.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xl">
+                          {p.sex === "MALE" ? "♂" : "♀"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-serif text-lg font-bold leading-tight text-dark">
+                        {p.name}
+                      </p>
+                      <p className="mt-0.5 text-sm text-dark-muted">
+                        {p.breed} · {calculateAge(p.dateOfBirth)} · {p.sex === "MALE" ? "♂ M" : "♀ F"}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 rounded-pill bg-terracotta/10 px-3 py-1.5 text-sm font-semibold text-terracotta">
+                      Predict <span aria-hidden="true">→</span>
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <SectionRule />
 

@@ -201,12 +201,22 @@ export function MatchRequestCard({ match, side }: MatchRequestCardProps) {
           )}
 
           {match.status === "ACCEPTED" && (
-            <Link
-              href={`/messages/${match.id}`}
-              className="btn-primary !px-4 !py-2 !text-sm"
-            >
-              Message
-            </Link>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Link
+                href={`/predict?a=${match.myPet.id}&b=${match.otherPet.id}`}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-terracotta/30 bg-terracotta/5 px-4 py-2 text-sm font-semibold text-terracotta transition-all hover:border-terracotta/60 hover:bg-terracotta/10"
+                title="Run a Punnett-square prediction across both pets' DNA"
+              >
+                <span aria-hidden="true">🧬</span>
+                Predict litter
+              </Link>
+              <Link
+                href={`/messages/${match.id}`}
+                className="btn-primary !px-4 !py-2 !text-sm"
+              >
+                Message
+              </Link>
+            </div>
           )}
         </div>
       </div>
