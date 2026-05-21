@@ -127,13 +127,13 @@ function LightContent({ signedIn = false }: { signedIn?: boolean }) {
             color: DARK,
           }}
         >
-          Find a{" "}
-          <span style={{ position: "relative", display: "inline-block" }}>
-            <em style={{ color: TERRA, fontStyle: "italic" }}>soulmate</em>
-            <UnderlineSwoosh />
-          </span>
+          Bred with care.
           <br />
-          for your pet.
+          <span style={{ position: "relative", display: "inline-block" }}>
+            <em style={{ color: TERRA, fontStyle: "italic" }}>Verified</em>
+            <UnderlineSwoosh />
+          </span>{" "}
+          by vets.
         </h1>
 
         <p
@@ -144,10 +144,10 @@ function LightContent({ signedIn = false }: { signedIn?: boolean }) {
             color: "#3D2A1A",
           }}
         >
-          PawMatch is the home of careful, considered breeding —{" "}
-          <em style={{ fontFamily: "var(--font-playfair, Georgia, serif)" }}>verified</em>{" "}
-          live photos, health records co-signed by real vets, and an AI advisor
-          that reads your pet&apos;s file before answering a question.
+          PawMatch is the trust infrastructure for responsible breeding — a
+          network of state-board-verified veterinarians who co-sign health
+          records, paired with a matching engine that flags shared
+          recessives, high COI, and underage pairings before they happen.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center gap-3">
@@ -283,7 +283,7 @@ function DarkContent({ signedIn = false }: { signedIn?: boolean }) {
             color: CREAM,
           }}
         >
-          Find a <em style={{ color: TERRA_LT, fontStyle: "italic" }}>perfect</em> match
+          Bred with care. <em style={{ color: TERRA_LT, fontStyle: "italic" }}>Verified</em> by vets.
         </h1>
 
         <p
