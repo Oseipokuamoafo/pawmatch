@@ -2,43 +2,79 @@
 
 ## What it is
 
-Responsible pet breeding matchmaking platform. Think Hinge meets PetMD.
-Owners create verified pet profiles, upload medical/genetic data, and get
-algorithmically matched based on traits, health scores, and genetic diversity.
+The **vet-verified compliance and verification layer for responsible pet
+breeding**. A regulated network of state-board-verified veterinarians
+co-sign health records; owners upload medical/genetic data; an AI screen
+auto-verifies vet licenses against state boards; an in-product engine
+flags dangerous pairings (shared recessives, high COI, underage) before
+matches happen.
 
-Core differentiator: **trust**. Live photo required, health records marked
-verified vs self-reported, matching engine flags dangerous pairings
-automatically.
+Core differentiator: **trust as infrastructure**. Live photo verification,
+records distinguished as vet-co-signed vs self-reported, an AI license
+auto-screen that gates the vet network, and matching that informs (never
+prescribes) breeding decisions.
+
+**Positioning note (post-investor research, 2026-05):** the project is
+not "Tinder for breeding" or "Hinge meets PetMD." That framing primes
+sophisticated capital to compare against consumer-marketplace economics
+(Wag! at $69M market cap is the cautionary tale) and triggers welfare-
+politics filters with no offsetting TAM. The fundable framing is
+operationally-grounded: vet-side regulated network + proprietary
+co-signed-records dataset + compliance tooling for breeders. The
+consumer match feed is a distribution channel, not the main act.
 
 ---
 
-## Product vision — three pillars
+## Product vision — focus, then expand
 
-1. **PawMatch** — Breeding matchmaking (core, building now)
-2. **PawServices** — Pet service marketplace (Phase 3)
-3. **PawSocial** — Pet influencer profiles (Phase 3)
+1. **PawMatch — trust infrastructure for responsible breeding** (core,
+   building now). The vet network + co-signed records + AI-screened
+   compatibility flagging. Everything before $5M ARR funnels into this.
+2. **PawServices** — deferred. Rover exited to Blackstone at $2.3B in
+   November 2023; this is not a category to enter from scratch without
+   a clear wedge. Revisit after the core network is liquid.
+3. **PawSocial** — deferred. "Pet influencer" is a content business with
+   different unit economics, not a natural extension of a trust network.
 
 ---
 
-## Go-to-market strategy — B2B2C
+## Go-to-market strategy — vets first, not kennel clubs
 
-Primary entry point is B2B. Sell to organizations first, reach consumers
-through them.
+Primary wedge is **veterinary practices**, not AKC. The trust signal we
+sell only becomes real once licensed vets are co-signing records, and
+vets are the only stakeholder with the regulatory authority to make that
+signal credible. They're also an order of magnitude more accessible than
+AKC and align with how Embark, Wisdom Panel, and the pet-insurance
+underwriters already distribute (~30,000 U.S. small-animal practices).
 
-**Target B2B customers**
-- Kennel clubs and breed registries (AKC is the anchor enterprise target)
-- Licensed professional breeders (5+ pets, kennel management needs)
-- Veterinary practices (vet verification network, patient acquisition)
-- Pet service businesses (groomers, trainers, boarders)
+**Sequencing (post-research):**
 
-Consumer audience (B2C) reached downstream through B2B partners.
+1. **Vet practices first** — sell as a compliance + verification SaaS
+   add-on ($99–299/mo per practice) plus per-record co-sign transaction
+   fees. Goal pre-raise: 1 named practice running the inbox + signing
+   records with measurable usage data.
+2. **DNA-test partnership second** — close one LOI with Embark or
+   Wisdom Panel for affiliate referrals before raising. Highest-ROI BD
+   action; doubles as defense against either company building a
+   matching feature.
+3. **Welfare-org endorsement third** — preempt the puppy-mill /
+   advocacy critique with a Humane Society, ASPCA, AVMA, or comparable
+   endorsement of the trust mechanisms before TechCrunch comments
+   discover us.
+4. **Breeders fourth** — once vets are signing, breeders have a
+   reason to be on the platform that doesn't depend on consumer
+   liquidity.
+5. **Kennel clubs / AKC only with an LOI** — AKC already runs AKC
+   Marketplace at 1.4M buyers/year on Salesforce + SAP + Sage X3. They
+   partner with established operational vendors (SpotOn, Allivet), not
+   white-label trust-stack startups. Realistic AKC outcomes are
+   competition or acquisition, not partnership. **The "$10k-50k/yr per
+   AKC partnership" line is removed from external materials** —
+   reinstate only when a signed LOI exists.
 
-**Why B2B first**
-- Faster revenue, larger contract sizes
-- Built-in trust and distribution
-- AKC white-label deal alone = **$10k–50k/yr**
-- Breeders bring their clients onto the platform
-- Vets bring their patients onto the platform
+**Consumer audience** reached through the vet+breeder network and
+organic search; consumer Pro+ is a side revenue stream, not the
+headline.
 
 ---
 
@@ -52,7 +88,10 @@ Consumer audience (B2C) reached downstream through B2B partners.
 - Socket.io (real-time chat) on a custom Next + Node server
 - Zod (validation)
 - Zustand + React Query (state)
-- React Native + Expo (Phase 3 mobile)
+- React Native + Expo — **deferred** until >$5M ARR. Mobile is a
+  distribution channel, not a feature; web + email + Twilio SMS covers
+  ~95% of the experience until we have the revenue to justify a second
+  codebase. Listed for awareness; not active in the roadmap.
 
 ---
 
@@ -161,6 +200,46 @@ coefficients once pedigree data exists.
 - Canvas snapshot → JPEG blob → Cloudinary upload
 - Gallery photos blocked until live photo captured
 - No gallery uploads accepted as live-photo substitute
+
+---
+
+## Investor pitch — one paragraph
+
+Use this language (or close variants) in any external materials. The
+old "Hinge meets PetMD" / "Tinder for breeding" framing is retired.
+
+> PawMatch is the verification and compliance layer for responsible pet
+> breeding — a regulated network of state-board-verified veterinarians
+> who co-sign health records, enforced by an AI screen that checks every
+> vet's license against their state board automatically, and used by
+> breeders, kennel clubs, and pet owners to prevent dangerous pairings
+> and produce audit-ready breeding documentation. The U.S. pet industry
+> is $158B and growing 4% annually (APPA 2026), but the trust
+> infrastructure under it is dominated by 1990s classifieds with no
+> oversight. We sell to vet practices ($99–299/mo SaaS), to breeders
+> (transaction fees on co-signed records), and to insurers and DNA-test
+> partners (referrals). We're at **[N] vets, [M] signed records,
+> [P] vet-practice pilots** today, growing [X]% MoM.
+
+The bracketed numbers MUST be real before this paragraph leaves the
+team. Specifically the pitch is not investable without:
+1. At least one named vet-practice case study with measurable usage.
+2. A signed LOI with Embark or Wisdom Panel for DNA-test referrals.
+3. (Ideally) a quote or endorsement from a welfare org or veterinary
+   association.
+
+### Legal / liability flags to address before raising
+
+- **Breeding-contract PDFs**: current generator (`pdf-lib`, 3 templates)
+  is at risk of unauthorized-practice-of-law claims in some U.S.
+  states. Either commission attorney review of every template OR
+  reposition as "starting point for your attorney" with hard
+  disclaimers on download. Until fixed, this is not a revenue line.
+- **Matching engine hard caps** (score capped at 30 on SHARED_RECESSIVE
+  / HIGH_COI / PET_UNDERAGE / UNVERIFIED_HEALTH): excellent UX, but
+  implies a clinical recommendation. Reframe as **informational, not
+  advisory** in UI copy and legal disclaimers. Otherwise we carry
+  liability when a flagged-OK pairing produces an unhealthy litter.
 
 ---
 
@@ -338,61 +417,152 @@ New features must integrate with existing code, not replace it.
   entitlement matrix (active/trialing/canceled/past-due/paused/
   incomplete + cancel-at-period-end + boundary cases). Dev flow:
   `stripe listen --forward-to localhost:3142/api/billing/webhook`.
-- React Native + Expo mobile app
-- Push notifications (Firebase FCM)
-- **PawServices** — pet service marketplace + booking
-- **PawSocial** — pet influencer profiles
+- ~~React Native + Expo mobile app~~ — **deferred** until >$5M ARR.
+  Mobile is a distribution channel, not a wedge.
+- ~~Push notifications (Firebase FCM)~~ — deferred with mobile.
+- ~~**PawServices** — pet service marketplace + booking~~ —
+  **deferred indefinitely**. Rover exited to Blackstone at $2.3B in
+  November 2023 and dominates this category. Entering it from scratch
+  without a clear differentiator is not fundable.
+- ~~**PawSocial** — pet influencer profiles~~ — **deferred
+  indefinitely**. Different unit economics (content business);
+  not a natural extension of the trust network.
 
-## Phase 4 — planned (AI + scale)
+## Phase 4 — planned (the next investable slices)
 
-- **Claude API breeding assistant**
-  - Gated behind Pro+ tier (**$19.99/mo**)
-  - Context-aware: pulls the pet's full health profile, DNA results, breed data
-  - Answers genetic questions, interprets DNA results, predicts litter outcomes
-  - Uses Anthropic `/v1/messages` with pet profile injected as context
-  - Built inside the app as a chat interface on the pet profile page
-- Embark + Wisdom Panel API partnership (direct DNA import)
-- Vet network direct verification
-- International expansion: UK, Australia, EU
-- White-label B2B: license platform to AKC, TICA, The Kennel Club UK ($10k–50k/yr per org)
-- Data licensing: anonymized breed health trends to vet research + pet food companies
-- Insurance partnerships: Lemonade, Nationwide referrals on new litters
-
----
-
-## Full monetization model
-
-### Short-term (0–12 months)
-- **Freemium subscriptions**
-  - Free: 3 match requests/month, 1 pet profile, basic browse
-  - Pro ($9.99/mo or $79/yr): unlimited matches, priority placement, breed predictor, contracts, unlimited pets
-- **Featured listings**: $4.99–$14.99 to boost a profile in search
-- **Verification fast-track**: $4.99 for expedited breeder badge (vs 72hr standard queue)
-
-### Medium-term (12–24 months)
-- DNA test kit referrals (Embark + Wisdom Panel): $15–30/kit, target 5k kits/yr ⇒ **$75k–$150k**
-- Breeding contract premium templates: $2.99/contract for advanced clauses
-- Vet verification network: $29/mo per vet partner
-- B2B kennel plans: $49/mo for licensed breeders managing 5+ pets
-
-### Long-term (24+ months)
-- AI breeding advisor (Claude API): Pro+ tier $19.99/mo
-- White-label B2B: $10k–50k/yr per kennel club or registry
-- Insurance referral fees: Lemonade, Nationwide on new litter policies
-- Data licensing (anonymized, aggregate): vet research + pet food companies
-- International expansion: UK, Australia, EU
+- [x] **Claude API breeding assistant** — shipped. Gated behind Pro+
+  ($19.99/mo) via Stripe; context-aware (pet health profile + DNA +
+  breed + heat cycles + goals); Sonnet 4.6 with adaptive thinking and
+  cached system prompt. Demoted from the headline of the pitch —
+  it's a feature, not a moat (Anthropic API access is commoditized).
+- **DNA-test affiliate partnership (Embark or Wisdom Panel)** —
+  **highest-priority pre-raise BD action**. Close one LOI before
+  fundraising. $5–30/test referred, plus a defensive against either
+  company shipping a matching feature themselves.
+- **Vet practice management software integration** (Provet, Vetspire,
+  ezyVet, Modern Animal hooks). Lets us sell to vets without asking
+  them to leave their existing PMS. The actual wedge into the vet
+  channel.
+- **Insurance referral partnerships** (Lemonade Pet — $500M+ pet
+  portfolio in 2025; Trupanion — $1.2B premiums in 2025). Both have
+  established referral programs and want trust-qualified leads.
+- ~~**White-label B2B to AKC, TICA, Kennel Club UK at $10k-50k/yr**~~
+  — **removed from the pitch**. AKC runs AKC Marketplace on
+  Salesforce/SAP/Sage X3 and partners only with established
+  operational vendors. Reinstate this line only when a signed LOI
+  exists. Realistic outcome is competition or acquisition.
+- ~~Data licensing to pet food companies~~ — deferred. A story,
+  not a line item, until the co-signed-records dataset is large
+  enough to be meaningfully proprietary.
+- International expansion — deferred. U.S. focus until $5M ARR.
 
 ---
 
-## Market context
+## Full monetization model — B2B revenue stack, not consumer Pro+
 
-- Pet care industry: **$150B+** globally, 6.1% CAGR
-- Pet breeding management software: **$11.2B** segment, 8.4% CAGR — severely underdeveloped
-- Designer / mixed-breed segment fastest growing → served by cross-breed predictor
-- **55% of pet owners** concerned about unethical breeding → trust + verification = commercial advantage
-- Embark DNA tests: $99–199 each, **4.5M+ pets tested** → proves breeders pay for genetic tools
-- Competitors (PuppyFind, Greenfield Puppies, AKC Marketplace): classifieds-style, **no matching intelligence, no genetic tools, no in-app communication**
-- No dominant consumer app combines medical records + genetic science + social matching today
+The model is reordered around what investors will actually fund: a
+B2B-first revenue stack where consumer subscriptions are a side
+stream, not the headline. Consumer marketplaces in pet verticals
+ceiling at Wag!-style outcomes ($69M); vet-SaaS comparables (Modern
+Animal at $100M ARR, Petfolk at Series C) sit an order of magnitude
+higher.
+
+### Tier 1 — vet-side B2B (the main act, 0–18 months)
+- **Vet-practice SaaS**: $99–299/mo per practice for the co-sign inbox,
+  compliance audit trail, vet-side analytics, and PMS integration
+  (Provet, Vetspire, ezyVet hooks). Target 30k US small-animal
+  practice TAM; $3M–30M reachable ARR.
+- **Per-record co-sign transaction fee**: $5–15 per signed health
+  record, split with the vet (we keep ~$3, vet keeps the rest).
+  Realistic at $500k–5M ARR with 100–1,000 active vets.
+
+### Tier 2 — partnership revenue (6–18 months)
+- **DNA-test affiliate** (Embark or Wisdom Panel): $5–30/test referred.
+  Close an LOI with one of the two **before raising** — highest-ROI
+  pre-raise BD action and a defense against either company shipping a
+  matching feature themselves. Wisdom Panel hit 5M pets tested by
+  March 2025; Embark hasn't raised since its 2021 $700M post.
+- **Insurance referrals** (Lemonade, Trupanion): $50–200/policy.
+  Lemonade's pet portfolio exceeded $500M in 2025; Trupanion wrote
+  $1.2B in premiums. Both have referral programs; both want trust-
+  qualified leads.
+
+### Tier 3 — consumer Pro+ (side stream)
+- **Pro+ ($19.99/mo)**: Claude-powered breeding assistant + cross-breed
+  predictor + priority placement + premium contract templates. Demoted
+  from the headline. Stripe + Pro+ tier already wired (see Phase 3 in
+  status section).
+
+### Things explicitly cut from the pitch
+- ~~AKC white-label at $10k–50k/yr~~ — fantasy without an LOI; AKC
+  already runs AKC Marketplace at 1.4M buyers/year. Reinstate only
+  when a signed contract exists.
+- ~~Featured listings, verification fast-track ($4.99 boosts)~~ —
+  classifieds-style monetization that anchors us against
+  Greenfield/PuppyFind comps. Cut.
+- ~~Breeding contract premium templates ($2.99 each)~~ — contract
+  generation needs attorney signoff (unauthorized-practice-of-law
+  exposure in some states). Either get formal attorney review on
+  templates or position as "starting point for your attorney" with
+  hard disclaimers. Until then, not a revenue line.
+- ~~Data licensing to pet food companies~~ — a story, not a line item.
+  Defer until the dataset is meaningfully large.
+
+---
+
+## Market context (corrected against 2026 sources)
+
+The previous version of this section overstated TAM in ways that
+wouldn't survive due diligence. Below are the numbers that hold up.
+
+- **U.S. pet industry: $158B in 2025** (APPA, March 2026), projected
+  ~4.4% growth in 2026 (about half driven by inflation). The "$150B
+  globally" figure was a U.S./global conflation; don't reuse it.
+- **U.S. dog & pet breeders industry: $4.0B in 2025, declining**
+  (IBISWorld) — revenue down 1.4% in 2024 with a further 1.2% drop
+  projected through 2025. This is a real headwind and must be
+  acknowledged. The thesis is "modernize a declining trust-broken
+  segment," not "ride a growing wave."
+- **Pet DNA testing market: $431M in 2025 → $687M by 2030 at ~9.8%
+  CAGR** (Mordor Intelligence). This is the actually-growing adjacent
+  category and the right one to partner with.
+- **Pet tech VC: $346M raised across 37 rounds in 2025** (+103% YoY,
+  small base; Tracxn). Pet + vet-related total ~$660M globally,
+  roughly flat with 2024. Capital is available; the bar has risen.
+- ~~"$11.2B pet breeding management software at 8.4% CAGR"~~ —
+  **removed**. Not supported by any source surfaced in the 2026
+  research pass. The actual category leader, BreederCloudPro, charges
+  $6.99/mo and serves ~17k users (~$1.4M ARR estimated). Breeder-
+  management SaaS as a standalone category does not yet support the
+  numbers previously claimed.
+- ~~"55% of pet owners concerned about unethical breeding"~~ —
+  **needs a source** before reuse. Qualitative direction is correct
+  (USDA documented 800+ violations at licensed dealers in 2024;
+  California continues to crack down on the puppy-mill pipeline) but
+  the specific 55% figure couldn't be traced to a primary survey.
+- **Embark hit ~$94M total raised at $700M post-money in 2021** and
+  has not raised since. Mars/Wisdom Panel reported 5M pets tested by
+  March 2025. Both numbers prove the DNA-test category but also show
+  the category leader's funding momentum has cooled — relevant when
+  pitching adjacent.
+- **AKC Marketplace already exists** at 1.4M buyers/year on $25
+  sign-up + $45/litter pricing. It is the entrenched incumbent we
+  compete against on trust, not a future partner without an LOI.
+- **Classifieds incumbents** (Greenfield Puppies, PuppyFind,
+  NextDayPets) work because they refuse operational responsibility.
+  Our explicit choice to take that responsibility on (vet co-signs,
+  COI flagging, license auto-screen) is both the moat and the
+  margin/liability risk — the pitch must address this directly, not
+  hand-wave past it.
+
+**Comp table for valuation conversations:**
+- Right comps: Modern Animal ($46M Series D, $100M ARR), Petfolk
+  ($36M Series C), Embark ($700M post-2021, no raise since), pet-
+  insurance (Lemonade $500M+ pet portfolio, Trupanion $1.2B
+  premiums).
+- Wrong comps to invite: Tinder, Hinge, Bumble (consumer-dating
+  economics PawMatch will never see) or Rover/Wag (consumer
+  marketplace where Rover already exited and Wag sits at $69M).
 
 ---
 
