@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useToast } from "@/components/toast/ToastProvider";
+import { useCounts } from "@/hooks/useCounts";
 import { calculateAge } from "@/lib/utils/age";
 import type { Sex } from "@/generated/prisma";
 
@@ -19,12 +20,6 @@ interface PetRow {
   dateOfBirth: string;
   livePhotoUrl: string | null;
   photos?: { url: string; isPrimary: boolean }[];
-}
-
-interface CountsResp {
-  pets: number;
-  pendingMatches: number;
-  avgHealthScore: number;
 }
 
 interface PetsResp {
@@ -124,16 +119,9 @@ export function ProfileDropdown({
     staleTime: 30_000,
   });
 
-  const counts = useQuery<CountsResp>({
-    queryKey: ["dropdown", "counts"],
-    queryFn: async () => {
-      const r = await fetch("/api/counts");
-      if (!r.ok) throw new Error("Failed to load counts");
-      return r.json();
-    },
-    enabled: open,
-    staleTime: 30_000,
-  });
+  // Shared with the nav badges — same query key, so opening the dropdown
+  // hits the already-warmed cache instead of refetching.
+  const counts = useCounts();
 
   /* ── Actions ────────────────────────────────────────────────────── */
   const handleSignOut = async () => {

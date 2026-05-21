@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { NavBadgeLink } from "./nav/NavBadgeLink";
 import { ProfileDropdown } from "./nav/ProfileDropdown";
 import { ThemeToggle } from "./ThemeToggle";
 import { VerificationBadge } from "./ui/VerificationBadge";
@@ -49,8 +50,12 @@ export async function TopNav() {
           <div className="flex items-center gap-1 sm:gap-2">
             <NavLink href="/dashboard">My pets</NavLink>
             <NavLink href="/browse">Browse</NavLink>
-            <NavLink href="/matches">Matches</NavLink>
-            <NavLink href="/messages">Messages</NavLink>
+            <NavBadgeLink href="/matches" source="pendingMatches">
+              Matches
+            </NavBadgeLink>
+            <NavBadgeLink href="/messages" source="unreadMessages">
+              Messages
+            </NavBadgeLink>
             {isBreeder && !isVerified && (
               <NavLink href="/dashboard/verify">Get verified</NavLink>
             )}
