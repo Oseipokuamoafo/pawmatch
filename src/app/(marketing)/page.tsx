@@ -10,6 +10,8 @@ import { MatchCardsRow } from "@/components/marketing/MatchCardsRow";
 import { ModeToggle } from "@/components/marketing/ModeToggle";
 import { PromisesSection } from "@/components/marketing/PromisesSection";
 import { MatchCardSection } from "@/components/marketing/MatchCardSection";
+import { VetNetworkSection } from "@/components/marketing/VetNetworkSection";
+import { BreedingAssistantSection } from "@/components/marketing/BreedingAssistantSection";
 import { useTheme } from "@/components/providers/ThemeProvider";
 
 const TERRA = "#C94B2A";
@@ -83,9 +85,11 @@ export default function MarketingHero() {
           )}
         </div>
 
-      {/* New: Section 2 + Section 3 */}
+      {/* Sections 2–5 — trust + product story */}
       <PromisesSection />
       <MatchCardSection />
+      <VetNetworkSection />
+      <BreedingAssistantSection />
     </div>
   );
 }
@@ -142,8 +146,8 @@ function LightContent({ signedIn = false }: { signedIn?: boolean }) {
         >
           PawMatch is the home of careful, considered breeding —{" "}
           <em style={{ fontFamily: "var(--font-playfair, Georgia, serif)" }}>verified</em>{" "}
-          live photos, health records you can trust, and an algorithm that flags
-          dangerous pairings before they happen.
+          live photos, health records co-signed by real vets, and an AI advisor
+          that reads your pet&apos;s file before answering a question.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center gap-3">
@@ -165,8 +169,8 @@ function LightContent({ signedIn = false }: { signedIn?: boolean }) {
           style={{ fontSize: 13, color: "#3D2A1A" }}
         >
           <TrustTag>Live photo</TrustTag>
-          <TrustTag>Verified records</TrustTag>
-          <TrustTag>Auto-flagged risks</TrustTag>
+          <TrustTag>Vet co-signed records</TrustTag>
+          <TrustTag>AI breeding advisor</TrustTag>
         </div>
       </motion.div>
 
@@ -290,7 +294,7 @@ function DarkContent({ signedIn = false }: { signedIn?: boolean }) {
             color: "rgba(245,239,230, 0.78)",
           }}
         >
-          Genetic compatibility · Verified records
+          Genetic compatibility · Vet co-signed · AI advisor
         </p>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
