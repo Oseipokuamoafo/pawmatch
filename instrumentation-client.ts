@@ -18,3 +18,8 @@ if (DSN) {
     enabled: process.env.NODE_ENV === "production",
   });
 }
+
+// Required by @sentry/nextjs for App Router navigation
+// instrumentation — exported even when DSN is unset so the SDK can
+// no-op gracefully.
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

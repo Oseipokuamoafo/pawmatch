@@ -24,8 +24,8 @@ export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
-  disableLogger: true,
   widenClientFileUpload: true,
   // Tunnel route to bypass ad-blockers in the browser.
   tunnelRoute: "/monitoring",
+  // (disableLogger removed — deprecated, and Turbopack ignores it anyway)
 });
