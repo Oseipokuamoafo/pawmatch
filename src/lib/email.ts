@@ -136,6 +136,36 @@ export async function sendVerificationRejected(opts: {
 
 /* ─── Vet network ────────────────────────────────────────────────────── */
 
+export async function sendVetApplicationReceived(opts: {
+  to: string;
+  name: string | null;
+  practiceName: string | null;
+  licenseState: string | null;
+}) {
+  const subject = "We received your vet application";
+  const practice = opts.practiceName
+    ? ` for <strong>${escape(opts.practiceName)}</strong>`
+    : "";
+  const board = opts.licenseState
+    ? ` against the ${escape(opts.licenseState)} veterinary medical board`
+    : " against your state veterinary medical board";
+  const html = brandedTemplate({
+    eyebrow: "Application received",
+    headline: "Thanks for applying.",
+    body: `<p>Hi Dr. ${escape(opts.name ?? "there")},</p>
+      <p>We&apos;ve received your veterinary license application${practice}.
+      Our automated screen is cross-referencing your details${board}
+      right now — most applications get a verdict back within a few
+      minutes, and a human admin signs off on the final approval.</p>
+      <p>You&apos;ll get another email the moment you&apos;re live. No
+      action needed on your end. If you want to update your details
+      while you wait, head to your dashboard.</p>`,
+    ctaLabel: "Open dashboard",
+    ctaHref: `${APP_URL}/dashboard`,
+  });
+  await safeSend({ to: opts.to, subject, html });
+}
+
 export async function sendVetApplicationApproved(opts: {
   to: string;
   name: string | null;

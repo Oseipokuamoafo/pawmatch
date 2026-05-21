@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
 import { signUpSchema } from "@/lib/validations/auth";
+import { sendVetApplicationReceived } from "@/lib/email";
 import { kickoffScreen } from "@/lib/vet-screening-handler";
 
 export async function POST(req: Request) {
@@ -72,8 +73,18 @@ export async function POST(req: Request) {
   // Fire the Claude-API auto-screen in the background. The custom Next +
   // Socket.io server (src/server.ts) is a long-running process so the
   // background promise completes; high-confidence matches auto-promote
-  // the user to VET without waiting on a human admin.
+  // the user to VET without waiting on a human admin. We also send a
+  // "thanks for applying" email immediately so applicants don't sit in
+  // silence between submit and approve.
   if (vetApplication) {
+    void sendVetApplicationReceived({
+      to: user.email,
+      name: user.name,
+      practiceName: vetApplication.practiceName,
+      licenseState: vetApplication.licenseState,
+    }).catch((err) => {
+      console.error("[register] vet application email failed:", err);
+    });
     kickoffScreen(user.id, {
       name,
       licenseNumber: vetApplication.licenseNumber,
