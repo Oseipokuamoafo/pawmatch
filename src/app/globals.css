@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* ── Dark-mode variant ───────────────────────────────────────────────────────
+   Tailwind v4: bind the `dark:` variant to the [data-theme="dark"] selector
+   on <html>, which is what the ThemeProvider toggles. Without this, dark:
+   utilities produce no CSS. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* ── z-index hierarchy ────────────────────────────────────────────────────── */
 :root {
   --z-background: 0;

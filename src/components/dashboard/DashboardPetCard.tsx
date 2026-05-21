@@ -30,7 +30,7 @@ export function DashboardPetCard({ pet }: { pet: DashboardPet }) {
         {/* Live verified badge */}
         {pet.livePhotoUrl && (
           <span
-            className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-cream/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#1D9E75] shadow-sm"
+            className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-cream/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#1D9E75] shadow-sm dark:bg-[#1A3D1E]/95 dark:text-[#7FBF88]"
             title="Live photo verified"
           >
             <Check className="w-2.5 h-2.5" />

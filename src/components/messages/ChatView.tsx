@@ -226,7 +226,7 @@ export function ChatView({
                         className={`rounded-2xl px-4 py-2.5 text-[15px] leading-snug shadow-sm ${
                           isMine
                             ? "rounded-br-sm bg-terracotta text-white"
-                            : "rounded-bl-sm bg-white text-dark border border-sand"
+                            : "rounded-bl-sm bg-white text-dark border border-sand dark:bg-[#2A1A10] dark:text-[#F5EDE4] dark:border-[#3D2A1A]"
                         }`}
                       >
                         {text}
@@ -325,8 +325,10 @@ export function ChatView({
 function ConnectionDot({ live }: { live: boolean }) {
   return (
     <div
-      className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-cream/95 px-2 py-0.5 text-[10px] font-medium shadow-sm"
-      style={{ color: live ? "#1D9E75" : "#3D2A1A", pointerEvents: "none" }}
+      className={`absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-cream/95 px-2 py-0.5 text-[10px] font-medium shadow-sm dark:bg-[#2A1A10]/95 ${
+        live ? "text-[#1D9E75] dark:text-[#5DD7AC]" : "text-[#3D2A1A] dark:text-[#E89A2A]"
+      }`}
+      style={{ pointerEvents: "none" }}
       title={live ? "Live" : "Reconnecting"}
     >
       <span

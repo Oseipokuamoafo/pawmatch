@@ -68,8 +68,11 @@ function Stat({
         />
       )}
       <p
-        className="relative text-[11px] font-semibold uppercase tracking-[0.18em]"
-        style={{ color: accent ? "#C94B2A" : "#3D2A1A" }}
+        className={`relative text-[11px] font-semibold uppercase tracking-[0.18em] ${
+          accent
+            ? "text-[#C94B2A]"
+            : "text-[#3D2A1A] dark:text-[#C4A882]"
+        }`}
       >
         {label}
       </p>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { useTheme } from "@/components/providers/ThemeProvider";
 
 export function ThemeToggle({
@@ -10,14 +12,22 @@ export function ThemeToggle({
   className?: string;
 }) {
   const { theme, toggle } = useTheme();
-  const isDark = theme === "dark";
+  // The theme is read from <html data-theme>, which is set by an inline boot
+  // script before React hydrates. That value isn't available on the server,
+  // so we render a neutral placeholder on the first pass and reveal the real
+  // sun/moon icon after mount — prevents the hydration mismatch.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const isDark = mounted && theme === "dark";
 
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      suppressHydrationWarning
+      aria-label={mounted ? (isDark ? "Switch to light mode" : "Switch to dark mode") : "Toggle theme"}
+      title={mounted ? (isDark ? "Switch to light mode" : "Switch to dark mode") : "Toggle theme"}
       className={
         "inline-flex items-center justify-center rounded-full border transition-[background,border-color,color,transform] duration-200 hover:scale-[1.06] active:scale-95 " +
         className
@@ -30,12 +40,17 @@ export function ThemeToggle({
         color: isDark ? "#F5EFE6" : "#C94B2A",
       }}
     >
-      <span
-        key={isDark ? "sun" : "moon"}
-        style={{ animation: "tt-pop 220ms ease both", display: "inline-flex" }}
-      >
-        {isDark ? <SunIcon /> : <MoonIcon />}
-      </span>
+      {mounted ? (
+        <span
+          key={isDark ? "sun" : "moon"}
+          style={{ animation: "tt-pop 220ms ease both", display: "inline-flex" }}
+        >
+          {isDark ? <SunIcon /> : <MoonIcon />}
+        </span>
+      ) : (
+        // Empty placeholder so SSR + first client paint match (no icon yet).
+        <span aria-hidden="true" style={{ width: 16, height: 16, display: "inline-flex" }} />
+      )}
       <style>{`
         @keyframes tt-pop {
           0%   { transform: scale(0.6) rotate(-20deg); opacity: 0; }

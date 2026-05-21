@@ -54,20 +54,18 @@ export const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(
         />
         <label
           htmlFor={inputId}
-          className="pointer-events-none absolute left-4 select-none transition-[transform,color,font-size] duration-150"
+          className={
+            "pointer-events-none absolute left-4 select-none transition-[transform,color,font-size] duration-150 " +
+            (error || (floating && focused)
+              ? "text-terracotta"
+              : "text-[#3D2A1A] dark:text-[#C4A882]")
+          }
           style={{
             top: floating ? 8 : 18,
             fontSize: floating ? 11 : 15,
             letterSpacing: floating ? "0.05em" : "0",
             textTransform: floating ? "uppercase" : "none",
             fontWeight: floating ? 600 : 400,
-            color: error
-              ? "#C94B2A"
-              : floating
-                ? focused
-                  ? "#C94B2A"
-                  : "#3D2A1A"
-                : "#3D2A1A",
           }}
         >
           {label}

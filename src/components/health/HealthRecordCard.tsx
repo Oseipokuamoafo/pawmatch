@@ -93,13 +93,12 @@ function VerifiedBadge({ verified }: { verified: boolean }) {
   }
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-      style={{ background: "rgba(232,213,183,0.55)", color: "#3D2A1A" }}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-[#3D2A1A] dark:text-[#C4A882]"
+      style={{ background: "rgba(232,213,183,0.55)" }}
       title="Owner-reported — not yet verified by a vet"
     >
       <span
-        className="block h-1.5 w-1.5 rounded-full"
-        style={{ background: "#3D2A1A", opacity: 0.45 }}
+        className="block h-1.5 w-1.5 rounded-full bg-[#3D2A1A]/45 dark:bg-[#C4A882]/55"
       />
       Self-reported
     </span>
