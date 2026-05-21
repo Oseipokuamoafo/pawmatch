@@ -26,6 +26,26 @@ const prisma = new PrismaClient();
 const PET_A_NAME = "Juno (demo)";
 const PET_B_NAME = "Atlas (demo)";
 
+const UNSPLASH = (id: string, w = 800) =>
+  `https://images.unsplash.com/photo-${id}?w=${w}&q=80&fit=crop`;
+
+// Chocolate-Lab-ish images for Juno (female, chocolate)
+const JUNO_PHOTOS = {
+  live: UNSPLASH("1583337130417-3346a1be7dee"),
+  gallery: [
+    UNSPLASH("1583511655857-d19b40a7a54e"),
+    UNSPLASH("1568393691622-c7ba131d63b4"),
+  ],
+};
+// Black-Lab-ish images for Atlas (male, black)
+const ATLAS_PHOTOS = {
+  live: UNSPLASH("1561037404-61cd46aa615b"),
+  gallery: [
+    UNSPLASH("1605568427561-40dd23c2acea"),
+    UNSPLASH("1543466835-00a7907e9de1"),
+  ],
+};
+
 async function main() {
   // ── 1. Anchor user ─────────────────────────────────────────────────
   const ownerEmail = process.env.OWNER_EMAIL?.trim();
@@ -59,6 +79,13 @@ async function main() {
       color: "Chocolate",
       weight: 28.5,
       bio: "Demo pet for /predict — has a carrier-status PRA + DM.",
+      livePhotoUrl: JUNO_PHOTOS.live,
+      photos: {
+        create: JUNO_PHOTOS.gallery.map((url, i) => ({
+          url,
+          isPrimary: i === 0,
+        })),
+      },
       traits: {
         create: [
           {
@@ -98,6 +125,13 @@ async function main() {
       color: "Black",
       weight: 32.1,
       bio: "Demo sire for /predict — PRA carrier, DM carrier, vWD clear.",
+      livePhotoUrl: ATLAS_PHOTOS.live,
+      photos: {
+        create: ATLAS_PHOTOS.gallery.map((url, i) => ({
+          url,
+          isPrimary: i === 0,
+        })),
+      },
       traits: {
         create: [
           {
