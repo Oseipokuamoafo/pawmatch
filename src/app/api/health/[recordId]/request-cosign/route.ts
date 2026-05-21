@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendVetCosignRequested } from "@/lib/email";
 import { cosignRequestSchema } from "@/lib/validations/vet";
+import { emitToUser, RealtimeEvent } from "@/lib/realtime";
 
 type Ctx = { params: Promise<{ recordId: string }> };
 
@@ -103,6 +104,27 @@ export async function POST(req: Request, ctx: Ctx) {
     recordType: record.type,
   });
 
+  // Real-time push to the vet's inbox — they see the request land
+  // without refreshing. Best-effort; falls through silently if the
+  // io instance isn't initialized (e.g. during build).
+  emitToUser(vet.id, RealtimeEvent.VetCosignRequested, {
+    id: updated.id,
+    type: updated.type,
+    title: updated.title,
+    notes: updated.notes,
+    fileUrl: updated.fileUrl,
+    recordDate: updated.recordDate.toISOString(),
+    requestedAt: updated.requestedAt?.toISOString() ?? null,
+    pet: {
+      id: record.pet.id,
+      name: record.pet.name,
+      // breed + species + owner aren't on the slim include here — the
+      // client refetches /api/vet/inbox to get the full row when these
+      // matter. The event is enough to render an optimistic placeholder
+      // and bump the badge.
+    },
+  });
+
   return NextResponse.json({ record: updated });
 }
 
@@ -134,10 +156,18 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     );
   }
 
+  const previousVetId = record.requestedVetId;
   const updated = await prisma.petHealth.update({
     where: { id: recordId },
     data: { requestedVetId: null, requestedAt: null },
   });
+
+  // Drop the row from the vet's live inbox if there was a pending vet.
+  if (previousVetId) {
+    emitToUser(previousVetId, RealtimeEvent.VetCosignCancelled, {
+      id: updated.id,
+    });
+  }
 
   return NextResponse.json({ record: updated });
 }

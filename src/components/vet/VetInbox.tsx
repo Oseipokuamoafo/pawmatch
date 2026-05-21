@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { useToast } from "@/components/toast/ToastProvider";
+import { useVetInboxSocket } from "@/hooks/useVetInboxSocket";
 import type { HealthRecordType, Species } from "@/generated/prisma";
 
 export interface InboxRow {
@@ -41,12 +42,58 @@ const TYPE_LABEL: Record<HealthRecordType, string> = {
 };
 
 export function VetInbox({
-  pending,
-  recentlySigned,
+  pending: initialPending,
+  recentlySigned: initialRecentlySigned,
 }: {
   pending: InboxRow[];
   recentlySigned: RecentSign[];
 }) {
+  const [pending, setPending] = useState(initialPending);
+  const [recentlySigned, setRecentlySigned] = useState(initialRecentlySigned);
+  const queryClient = useQueryClient();
+
+  // Refetch the full inbox from the server. We do this on socket events
+  // rather than try to merge partial event payloads — the API call is
+  // small and gives us complete row data (breed, owner, etc.) that
+  // the lightweight event doesn't carry.
+  const refetch = useCallback(async () => {
+    try {
+      const r = await fetch("/api/vet/inbox", { cache: "no-store" });
+      if (!r.ok) return;
+      const data = (await r.json()) as {
+        pending: InboxRow[];
+        recentlySigned: RecentSign[];
+      };
+      setPending(data.pending);
+      setRecentlySigned(data.recentlySigned);
+    } catch {
+      /* transient — next event or next mutation will resync */
+    }
+  }, []);
+
+  // Real-time push from /api/health/[recordId]/request-cosign (and the
+  // DELETE counterpart). Refresh state + bump the TopNav badge cache
+  // so the unread count updates without waiting for the 30s poll.
+  useVetInboxSocket({
+    enabled: true,
+    onCosignRequested: () => {
+      void refetch();
+      queryClient.invalidateQueries({ queryKey: ["counts"] });
+    },
+    onCosignCancelled: () => {
+      void refetch();
+      queryClient.invalidateQueries({ queryKey: ["counts"] });
+    },
+  });
+
+  // When the user comes back to the tab, do an opportunistic refetch —
+  // catches anything that happened while the socket was disconnected.
+  useEffect(() => {
+    const onFocus = () => void refetch();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refetch]);
+
   return (
     <div className="space-y-12">
       <section>

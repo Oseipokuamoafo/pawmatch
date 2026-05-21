@@ -80,6 +80,11 @@ app
     io.on("connection", (socket) => {
       const userId = socket.data.userId!;
 
+      // Personal room for direct user-targeted events (e.g. vet inbox
+      // cosign-request notifications). Stays joined for the life of
+      // the socket — see src/lib/realtime.ts:emitToUser.
+      socket.join(`user:${userId}`);
+
       socket.on("join_match", async (matchId) => {
         if (typeof matchId !== "string" || matchId.length === 0) return;
         const ok = await isParticipant(matchId, userId);
