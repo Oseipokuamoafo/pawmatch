@@ -157,12 +157,34 @@ model Pet {
   healthRecords   PetHealth[]
   traits          PetTrait[]
   breedingGoals   BreedingGoal[]
+  heatCycles      HeatCycle[]
   sentMatches     Match[]        @relation("PetAMatches")
   receivedMatches Match[]        @relation("PetBMatches")
 
   @@index([ownerId])
   @@index([species])
   @@index([breed])
+}
+
+model HeatCycle {
+  id                 String   @id @default(cuid())
+  petId              String
+  /// Day the heat (proestrus) started. Required.
+  startDate          DateTime
+  /// Day the heat ended (estrus → diestrus transition). Null while ongoing.
+  endDate            DateTime?
+  /// Optional explicit fertile-window dates. When null the engine
+  /// estimates day 9-13 of the cycle (canine norm).
+  peakFertilityStart DateTime?
+  peakFertilityEnd   DateTime?
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  pet                Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+  @@index([startDate])
 }
 
 model PetPhoto {

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decryptMessage } from "@/lib/crypto";
+import { summarizeHeat } from "@/lib/heat";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import {
   bestMatchScoresByPet,
@@ -12,6 +13,7 @@ import {
   type PetWithExtras,
 } from "@/lib/dashboard-stats";
 import type { TopMatch } from "@/components/dashboard/TopMatchesPanel";
+import type { HeatScheduleEntry } from "@/components/heat/HeatScheduleWidget";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -98,6 +100,65 @@ export default async function DashboardPage() {
   const bestMatch = bestMatchScoresByPet(matches);
   const dashboardPets = toDashboardPets(pets as PetWithExtras[], bestMatch);
   const stats = computeStats(pets as PetWithExtras[], matches, userId);
+
+  /* ─── Heat-cycle forecast across female pets ──────────────────────── */
+  const femalePets = pets.filter((p) => p.sex === "FEMALE");
+  const heatEntries: HeatScheduleEntry[] = femalePets.length
+    ? await prisma.heatCycle
+        .findMany({
+          where: { pet: { ownerId: userId } },
+          orderBy: { startDate: "desc" },
+        })
+        .then((cycles) => {
+          const byPet = new Map<string, typeof cycles>();
+          for (const c of cycles) {
+            const list = byPet.get(c.petId) ?? [];
+            list.push(c);
+            byPet.set(c.petId, list);
+          }
+          return femalePets
+            .map<HeatScheduleEntry | null>((p) => {
+              const petCycles = byPet.get(p.id) ?? [];
+              if (petCycles.length === 0) return null;
+              const summary = summarizeHeat(
+                petCycles.map((c) => ({
+                  id: c.id,
+                  startDate: c.startDate,
+                  endDate: c.endDate,
+                  peakFertilityStart: c.peakFertilityStart,
+                  peakFertilityEnd: c.peakFertilityEnd,
+                })),
+                p.species,
+              );
+              return {
+                petId: p.id,
+                petName: p.name,
+                petPhotoUrl:
+                  p.photos.find((ph) => ph.isPrimary)?.url
+                  ?? p.photos[0]?.url
+                  ?? p.livePhotoUrl,
+                species: p.species,
+                isActive: summary.isActive,
+                nextPredictedStart: summary.nextPredictedStart?.toISOString() ?? null,
+                daysUntilNext: summary.daysUntilNext,
+                fertileWindow: summary.fertileWindow
+                  ? {
+                      start: summary.fertileWindow.start.toISOString(),
+                      end: summary.fertileWindow.end.toISOString(),
+                    }
+                  : null,
+              };
+            })
+            .filter((e): e is HeatScheduleEntry => e !== null)
+            .sort((a, b) => {
+              // Active first, then by daysUntilNext ascending (overdue counts as 0).
+              if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+              const ad = a.daysUntilNext ?? Number.MAX_SAFE_INTEGER;
+              const bd = b.daysUntilNext ?? Number.MAX_SAFE_INTEGER;
+              return ad - bd;
+            });
+        })
+    : [];
 
   /* ─── Top matches: highest score, ACCEPTED first, then PENDING ────── */
   const topMatches: TopMatch[] = matches
@@ -231,6 +292,7 @@ export default async function DashboardPage() {
       stats={stats}
       topMatches={topMatches}
       activity={recentActivity}
+      heatEntries={heatEntries}
       verifyCTA={verifyCTA}
     />
   );

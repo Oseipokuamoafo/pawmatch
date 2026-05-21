@@ -11,6 +11,10 @@ import { TopMatchesPanel, type TopMatch } from "./TopMatchesPanel";
 import { ActivityFeed } from "./ActivityFeed";
 import { AddPetModal } from "./AddPetModal";
 import { VerifyCTA } from "./VerifyCTA";
+import {
+  HeatScheduleWidget,
+  type HeatScheduleEntry,
+} from "@/components/heat/HeatScheduleWidget";
 import type {
   ActivityEvent,
   DashboardPet,
@@ -25,6 +29,7 @@ interface DashboardClientProps {
   stats: DashboardStats;
   topMatches: TopMatch[];
   activity: ActivityEvent[];
+  heatEntries: HeatScheduleEntry[];
   /** When set, render the breeder-verification banner. */
   verifyCTA?: { status: VerificationStatus | null } | null;
 }
@@ -44,6 +49,7 @@ export function DashboardClient({
   stats,
   topMatches,
   activity,
+  heatEntries,
   verifyCTA,
 }: DashboardClientProps) {
   const router = useRouter();
@@ -138,6 +144,13 @@ export function DashboardClient({
             </div>
           )}
         </section>
+
+        {/* ── Heat-cycle forecast (when there's anything to show) ── */}
+        {heatEntries.length > 0 && (
+          <section className="mt-12">
+            <HeatScheduleWidget entries={heatEntries} />
+          </section>
+        )}
 
         {/* ── Bottom two-column: top matches + activity ───────────── */}
         <section className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-2">

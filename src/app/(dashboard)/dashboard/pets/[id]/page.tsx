@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateAge } from "@/lib/utils/age";
+import { HeatCyclesSection } from "@/components/heat/HeatCyclesSection";
 import { PhotoGallery } from "@/components/pets/PhotoGallery";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
 import type { HealthRecordType, Sex, TraitSource } from "@/generated/prisma";
@@ -243,6 +244,18 @@ export default async function PetDetailPage(ctx: Ctx) {
       </Section>
 
       <SectionRule />
+
+      {/* ── Heat cycles (female pets only) ─────────────────────────────── */}
+      {pet.sex === "FEMALE" && (
+        <>
+          <HeatCyclesSection
+            petId={pet.id}
+            petName={pet.name}
+            species={pet.species}
+          />
+          <SectionRule />
+        </>
+      )}
 
       {/* ── Predict litter (cross-breed predictor) ─────────────────────── */}
       <section id="predict-litter" className="mx-auto max-w-6xl px-6 py-12 md:py-16 scroll-mt-24">
