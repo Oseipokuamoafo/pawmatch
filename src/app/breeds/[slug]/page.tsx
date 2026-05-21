@@ -151,8 +151,10 @@ export default async function BreedDetailPage(ctx: Ctx) {
             Watch list
           </h2>
           <p className="mt-3 text-dark-muted leading-relaxed">
-            Known recessives the matching engine auto-flags when both parents carry the same
-            marker. Always cross-reference with the latest DNA panel.
+            Known recessives the matching engine surfaces when both parents
+            carry the same marker — informational signals, not clinical
+            recommendations. Always cross-reference with the latest DNA
+            panel and talk to your vet before making breeding decisions.
           </p>
         </header>
         {breed.commonRecessiveGenes.length === 0 ? (
@@ -182,9 +184,10 @@ export default async function BreedDetailPage(ctx: Ctx) {
           Pedigree intelligence — coming soon
         </h2>
         <p className="mt-3 max-w-2xl text-sm text-dark-muted leading-relaxed">
-          Real Wright path coefficients, founder distribution, and registry-linked
-          ancestry traces. The breed schema reserves a JSON column today; the
-          AKC/TICA partnership unlocks the data.
+          Real Wright path coefficients, founder distribution, and
+          registry-linked ancestry traces. The breed schema reserves a
+          JSON column today; we&apos;re building toward DNA-test partner
+          integrations and breed-registry data feeds to unlock it.
         </p>
       </section>
 

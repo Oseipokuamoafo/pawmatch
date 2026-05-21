@@ -96,6 +96,14 @@ export function ContractActions({ matchId, contractId }: ContractActionsProps) {
         Generates an editable draft using a built-in template. Both parties
         review in-app before signing.
       </p>
+      <p className="mt-2 rounded-xl border border-sand bg-cream/40 px-3 py-2 text-[11px] leading-relaxed text-dark-muted">
+        <strong className="text-dark">Starting point only, not legal
+        advice.</strong> These templates are drafts intended as a starting
+        point for an attorney&apos;s review. PawMatch is not a law firm
+        and does not provide legal services. State-specific requirements,
+        kennel-club rules, and tax implications vary — have a licensed
+        attorney in your jurisdiction review before signing.
+      </p>
     </div>
   );
 }

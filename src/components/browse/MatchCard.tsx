@@ -226,12 +226,14 @@ function formatDistance(km: number): string {
 
 function FlagWarning({ flags }: { flags: string[] }) {
   const label = flags.map((f) => f.replace(/_/g, " ").toLowerCase()).join(", ");
+  // "Informational" framing — not a clinical recommendation. The score
+  // itself is just data; the owner + their vet make the call.
   return (
     <div
       className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm cursor-help"
       style={{ background: "rgba(232,154,42,0.95)" }}
-      title={`Auto-flagged: ${label}`}
-      aria-label={`Auto-flagged: ${label}`}
+      title={`Worth reviewing with your vet: ${label}. Informational only — not a clinical recommendation.`}
+      aria-label={`Worth reviewing with your vet: ${label}. Informational only — not a clinical recommendation.`}
     >
       !
     </div>

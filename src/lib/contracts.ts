@@ -264,6 +264,9 @@ export async function renderContractPdf(
   }
 
   // ── Footer on every page ──────────────────────────────────────────
+  // Two-line footer: page identifier on top, legal disclaimer below.
+  // The disclaimer protects against unauthorized-practice-of-law
+  // claims — these templates are starting points, not legal advice.
   const pageCount = pdf.getPageCount();
   for (let i = 0; i < pageCount; i++) {
     const p: PDFPage = pdf.getPage(i);
@@ -271,8 +274,18 @@ export async function renderContractPdf(
       `PawMatch · Match ${ctx.match.id.slice(0, 8)} · Page ${i + 1} of ${pageCount}`,
       {
         x: MARGIN_X,
-        y: 36,
+        y: 44,
         size: 8,
+        font: serif,
+        color: MUTED,
+      }
+    );
+    p.drawText(
+      "Template only. Not legal advice. PawMatch is not a law firm. Have a licensed attorney in your jurisdiction review before signing.",
+      {
+        x: MARGIN_X,
+        y: 30,
+        size: 7,
         font: serif,
         color: MUTED,
       }
