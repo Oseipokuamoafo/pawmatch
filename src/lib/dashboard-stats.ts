@@ -62,7 +62,24 @@ export type ActivityEvent =
       counterpartName: string;
     }
   | { kind: "pet.added"; at: Date; petName: string }
-  | { kind: "health.added"; at: Date; petName: string; title: string };
+  | { kind: "health.added"; at: Date; petName: string; title: string }
+  | {
+      kind: "message.received";
+      at: Date;
+      petName: string;
+      counterpartName: string;
+      preview: string;
+      matchId: string;
+      fromMe: boolean;
+    }
+  | {
+      kind: "message.flagged";
+      at: Date;
+      petName: string;
+      counterpartName: string;
+      preview: string;
+      matchId: string;
+    };
 
 /* ─── Health/trust score ─────────────────────────────────────────────── */
 

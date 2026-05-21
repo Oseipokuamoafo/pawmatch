@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { decryptMessage } from "@/lib/crypto";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import {
   bestMatchScoresByPet,
@@ -21,8 +22,9 @@ export default async function DashboardPage() {
   const isVerified = Boolean(session.user.isVerified);
 
   // Parallel fetches — pets, matches with relations, recent health records,
-  // and (for breeders) the latest verification request.
-  const [pets, matches, recentHealth, verifyReq] = await Promise.all([
+  // recent messages across all accepted matches, and (for breeders) the
+  // latest verification request.
+  const [pets, matches, recentHealth, recentMessages, verifyReq] = await Promise.all([
     prisma.pet.findMany({
       where: { ownerId: userId },
       include: {
@@ -57,6 +59,27 @@ export default async function DashboardPage() {
       include: { pet: { select: { name: true } } },
       orderBy: { recordDate: "desc" },
       take: 5,
+    }),
+    prisma.message.findMany({
+      where: {
+        match: {
+          status: "ACCEPTED",
+          OR: [{ initiatedById: userId }, { receivedById: userId }],
+        },
+      },
+      include: {
+        match: {
+          select: {
+            id: true,
+            initiatedById: true,
+            receivedById: true,
+            petA: { select: { name: true, ownerId: true } },
+            petB: { select: { name: true, ownerId: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 8,
     }),
     isBreeder
       ? prisma.verificationRequest.findUnique({
@@ -153,8 +176,48 @@ export default async function DashboardPage() {
     });
   }
 
+  /* ─── Messages ──────────────────────────────────────────────────── */
+  for (const m of recentMessages) {
+    const fromMe = m.senderId === userId;
+    // The user's pet is whichever side they own; counterpart is the other.
+    const userOwnsPetA = m.match.petA.ownerId === userId;
+    const myPetName = userOwnsPetA ? m.match.petA.name : m.match.petB.name;
+    const theirPetName = userOwnsPetA ? m.match.petB.name : m.match.petA.name;
+
+    let plain: string;
+    try {
+      plain = decryptMessage(m.encryptedContent, m.iv);
+    } catch {
+      // Skip messages we can't decrypt rather than tripping the page.
+      continue;
+    }
+    const preview = truncatePreview(plain);
+    const isFlagged = plain.startsWith("[FLAGGED]");
+
+    if (isFlagged) {
+      activity.push({
+        kind: "message.flagged",
+        at: m.createdAt,
+        petName: myPetName,
+        counterpartName: theirPetName,
+        preview: preview.replace(/^\[FLAGGED\]\s*/i, ""),
+        matchId: m.match.id,
+      });
+    } else {
+      activity.push({
+        kind: "message.received",
+        at: m.createdAt,
+        petName: myPetName,
+        counterpartName: theirPetName,
+        preview,
+        matchId: m.match.id,
+        fromMe,
+      });
+    }
+  }
+
   activity.sort((a, b) => b.at.getTime() - a.at.getTime());
-  const recentActivity = activity.slice(0, 8);
+  const recentActivity = activity.slice(0, 10);
 
   const firstName =
     session.user.name?.split(/\s+/)[0] ??
@@ -171,4 +234,11 @@ export default async function DashboardPage() {
       verifyCTA={verifyCTA}
     />
   );
+}
+
+/** Trim a message preview to ~80 chars, collapsing whitespace + adding ellipsis. */
+function truncatePreview(s: string): string {
+  const clean = s.replace(/\s+/g, " ").trim();
+  if (clean.length <= 80) return clean;
+  return clean.slice(0, 77).trimEnd() + "…";
 }

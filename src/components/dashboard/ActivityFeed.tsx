@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { ActivityEvent } from "@/lib/dashboard-stats";
 
 export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
@@ -28,19 +30,53 @@ export function ActivityFeed({ events }: { events: ActivityEvent[] }) {
       ) : (
         <ul className="divide-y divide-sand">
           {events.map((e, i) => (
-            <li key={i} className="flex items-start gap-3 px-5 py-3">
-              <Glyph kind={e.kind} />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm leading-snug text-dark">{describe(e)}</p>
-                <p className="mt-0.5 text-[11px] text-dark-muted">
-                  {formatRelative(e.at)}
-                </p>
-              </div>
+            <li key={i}>
+              <ActivityRow event={e} />
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+/* Some events link to a matching deep-link (e.g. messages → /messages/<id>),
+   others are static. ActivityRow decides which shell to render. */
+function ActivityRow({ event }: { event: ActivityEvent }) {
+  const href =
+    event.kind === "message.received" || event.kind === "message.flagged"
+      ? `/messages/${event.matchId}`
+      : null;
+
+  const body = (
+    <div className="flex items-start gap-3 px-5 py-3">
+      <Glyph kind={event.kind} />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm leading-snug text-dark">{describe(event)}</p>
+        {(event.kind === "message.received" || event.kind === "message.flagged") && (
+          <p
+            className={
+              event.kind === "message.flagged"
+                ? "mt-1 truncate rounded-md bg-[#C94B2A0F] px-2 py-1 text-[12px] italic text-[#C94B2A]"
+                : "mt-1 truncate text-[12px] text-dark-muted"
+            }
+            title={event.preview}
+          >
+            &ldquo;{event.preview}&rdquo;
+          </p>
+        )}
+        <p className="mt-0.5 text-[11px] text-dark-muted">
+          {formatRelative(event.at)}
+        </p>
+      </div>
+    </div>
+  );
+
+  if (!href) return body;
+  return (
+    <Link href={href} className="block transition-colors hover:bg-cream/60">
+      {body}
+    </Link>
   );
 }
 
@@ -65,7 +101,7 @@ function describe(e: ActivityEvent): React.ReactNode {
     case "match.accepted":
       return (
         <>
-          <strong className="font-semibold text-[#1D9E75]">Accepted</strong> — {e.petName} &{" "}
+          <strong className="font-semibold text-[#1D9E75] dark:text-[#7FBF88]">Accepted</strong> — {e.petName} &{" "}
           {e.counterpartName} are a match
         </>
       );
@@ -87,6 +123,25 @@ function describe(e: ActivityEvent): React.ReactNode {
           Recorded <strong className="font-semibold">{e.title}</strong> for {e.petName}
         </>
       );
+    case "message.received":
+      return e.fromMe ? (
+        <>
+          You replied to <strong className="font-semibold">{e.counterpartName}</strong>{" "}
+          <span className="text-dark-muted">· {e.petName}</span>
+        </>
+      ) : (
+        <>
+          <strong className="font-semibold">{e.counterpartName}</strong> messaged{" "}
+          <strong className="font-semibold">{e.petName}</strong>
+        </>
+      );
+    case "message.flagged":
+      return (
+        <>
+          <strong className="font-semibold text-[#C94B2A]">Flagged message</strong> from{" "}
+          {e.counterpartName} <span className="text-dark-muted">· {e.petName}</span>
+        </>
+      );
   }
 }
 
@@ -96,9 +151,21 @@ function Glyph({ kind }: { kind: ActivityEvent["kind"] }) {
       ? "#1D9E75"
       : kind === "match.rejected"
         ? "#3D2A1A"
-        : "#C94B2A";
+        : kind === "message.flagged"
+          ? "#C94B2A"
+          : kind === "message.received"
+            ? "#1D9E75"
+            : "#C94B2A";
   const icon =
-    kind === "match.accepted" ? "✓" : kind === "match.rejected" ? "·" : "♥";
+    kind === "match.accepted"
+      ? "✓"
+      : kind === "match.rejected"
+        ? "·"
+        : kind === "message.received"
+          ? "✉"
+          : kind === "message.flagged"
+            ? "⚠"
+            : "♥";
   return (
     <span
       className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
