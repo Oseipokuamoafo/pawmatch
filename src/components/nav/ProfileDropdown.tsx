@@ -33,7 +33,7 @@ interface ProfileDropdownProps {
   fallbackName?: string | null;
   fallbackEmail?: string | null;
   fallbackImage?: string | null;
-  fallbackRole?: "OWNER" | "BREEDER" | "ADMIN";
+  fallbackRole?: "OWNER" | "BREEDER" | "VET" | "ADMIN";
   fallbackIsVerified?: boolean;
 }
 

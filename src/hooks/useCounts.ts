@@ -7,6 +7,7 @@ export interface Counts {
   pendingMatches: number;
   unreadMessages: number;
   avgHealthScore: number;
+  vetPendingCosigns: number;
 }
 
 /** Shared key — any consumer (nav badges, profile dropdown, dashboard

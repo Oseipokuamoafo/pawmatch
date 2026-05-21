@@ -3,9 +3,12 @@ import { notFound, redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { HealthRecordCard } from "@/components/health/HealthRecordCard";
+import {
+  HealthRecordCard,
+  type HealthRecordCardData,
+} from "@/components/health/HealthRecordCard";
 import { DNAImport } from "@/components/health/DNAImport";
-import type { HealthRecordType, PetHealth } from "@/generated/prisma";
+import type { HealthRecordType } from "@/generated/prisma";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -48,20 +51,55 @@ export default async function PetHealthPage(ctx: Ctx) {
       ownerId: true,
       healthRecords: {
         orderBy: { recordDate: "desc" },
+        include: {
+          verifiedByVet: {
+            select: { id: true, name: true, vetPracticeName: true },
+          },
+          requestedVet: {
+            select: { id: true, name: true, vetPracticeName: true },
+          },
+        },
       },
     },
   });
   if (!pet) notFound();
   if (pet.ownerId !== session.user.id) notFound();
 
-  const byType = new Map<HealthRecordType, PetHealth[]>();
+  const records: HealthRecordCardData[] = pet.healthRecords.map((r) => ({
+    id: r.id,
+    title: r.title,
+    type: r.type,
+    recordDate: r.recordDate.toISOString(),
+    isVerified: r.isVerified,
+    verifiedBy: r.verifiedBy,
+    verifiedAt: r.verifiedAt ? r.verifiedAt.toISOString() : null,
+    fileUrl: r.fileUrl,
+    notes: r.notes,
+    requestedAt: r.requestedAt ? r.requestedAt.toISOString() : null,
+    verifiedByVet: r.verifiedByVet
+      ? {
+          id: r.verifiedByVet.id,
+          name: r.verifiedByVet.name,
+          practiceName: r.verifiedByVet.vetPracticeName,
+        }
+      : null,
+    requestedVet: r.requestedVet
+      ? {
+          id: r.requestedVet.id,
+          name: r.requestedVet.name,
+          practiceName: r.requestedVet.vetPracticeName,
+        }
+      : null,
+  }));
+
+  const byType = new Map<HealthRecordType, HealthRecordCardData[]>();
   for (const g of GROUPS) byType.set(g.type, []);
-  for (const r of pet.healthRecords) {
+  for (const r of records) {
     byType.get(r.type)?.push(r);
   }
 
-  const totalCount = pet.healthRecords.length;
-  const verifiedCount = pet.healthRecords.filter((r) => r.isVerified).length;
+  const totalCount = records.length;
+  const verifiedCount = records.filter((r) => r.isVerified).length;
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 md:py-14">

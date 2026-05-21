@@ -9,8 +9,22 @@ import { motion } from "framer-motion";
 import { signUpSchema } from "@/lib/validations/auth";
 import { FloatingInput } from "@/components/forms/FloatingInput";
 
-type Role = "OWNER" | "BREEDER";
-type FieldErrors = Partial<Record<"name" | "email" | "password" | "role" | "root", string>>;
+type Role = "OWNER" | "BREEDER" | "VET";
+type FieldErrors = Partial<
+  Record<
+    | "name"
+    | "email"
+    | "password"
+    | "role"
+    | "licenseNumber"
+    | "licenseState"
+    | "practiceName"
+    | "practiceAddress"
+    | "practicePhone"
+    | "root",
+    string
+  >
+>;
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -19,6 +33,12 @@ export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("OWNER");
+  const [vetMode, setVetMode] = useState(false);
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [licenseState, setLicenseState] = useState("");
+  const [practiceName, setPracticeName] = useState("");
+  const [practiceAddress, setPracticeAddress] = useState("");
+  const [practicePhone, setPracticePhone] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,15 +46,50 @@ export default function SignUpPage() {
     e.preventDefault();
     setErrors({});
 
-    const parsed = signUpSchema.safeParse({ name, email, password, role });
+    // Vet license fields ship when EITHER:
+    //   1. user picked role=VET (mandatory in that path), OR
+    //   2. user picked OWNER/BREEDER + ticked the optional vet add-on.
+    const includeVetBlock = role === "VET" || vetMode;
+    const payload = {
+      name,
+      email,
+      password,
+      role,
+      ...(includeVetBlock
+        ? {
+            vetApplication: {
+              licenseNumber,
+              licenseState,
+              practiceName,
+              practiceAddress,
+              practicePhone,
+            },
+          }
+        : {}),
+    };
+
+    const parsed = signUpSchema.safeParse(payload);
     if (!parsed.success) {
       const flat = parsed.error.flatten().fieldErrors;
+      const vetErrs =
+        (parsed.error.flatten().fieldErrors as Record<string, string[] | undefined>);
+      // vetApplication.<field> arrives flattened under the parent key by Zod.
+      // Pull subfield errors from the issue list when present.
+      const vetIssue = parsed.error.issues.filter((i) => i.path[0] === "vetApplication");
+      const vetField = (k: string) =>
+        vetIssue.find((i) => i.path[1] === k)?.message;
       setErrors({
         name: flat.name?.[0],
         email: flat.email?.[0],
         password: flat.password?.[0],
         role: flat.role?.[0],
+        licenseNumber: vetField("licenseNumber"),
+        licenseState: vetField("licenseState"),
+        practiceName: vetField("practiceName"),
+        practiceAddress: vetField("practiceAddress"),
+        practicePhone: vetField("practicePhone"),
       });
+      void vetErrs;
       return;
     }
 
@@ -143,7 +198,7 @@ export default function SignUpPage() {
               >
                 I am a…
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <RoleCard
                   selected={role === "OWNER"}
                   onClick={() => setRole("OWNER")}
@@ -158,9 +213,96 @@ export default function SignUpPage() {
                   label="Breeder"
                   copy="Responsible breeding program"
                 />
+                <RoleCard
+                  selected={role === "VET"}
+                  onClick={() => setRole("VET")}
+                  emoji="🩺"
+                  label="Veterinarian"
+                  copy="Verify health records"
+                />
               </div>
               {errors.role && (
                 <p className="mt-1.5 text-sm text-terracotta">{errors.role}</p>
+              )}
+            </div>
+
+            {/* ── Vet application ────────────────────────────────────────
+                Two paths into the license fields:
+                  - role=VET   → fields are required, panel always expanded
+                  - OWNER/BREEDER + checkbox → optional add-on (vet who also
+                    has pets or breeds)                                   */}
+            <div className="rounded-2xl border border-sand bg-cream/40 p-4">
+              {role === "VET" ? (
+                <div>
+                  <p className="text-sm font-semibold text-dark">
+                    🩺 Veterinary license details
+                  </p>
+                  <p className="mt-0.5 text-xs text-dark-muted leading-relaxed">
+                    We cross-reference your license against your state board
+                    and email you within 24 hours. No pets required to sign up.
+                  </p>
+                </div>
+              ) : (
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={vetMode}
+                    onChange={(e) => setVetMode(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-terracotta"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-dark">
+                      🩺 I&apos;m also a licensed veterinarian
+                    </span>
+                    <span className="mt-0.5 block text-xs text-dark-muted leading-relaxed">
+                      Apply to co-sign health records on PawMatch alongside
+                      your {role === "BREEDER" ? "breeder" : "owner"} profile.
+                    </span>
+                  </span>
+                </label>
+              )}
+
+              {(role === "VET" || vetMode) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  className="mt-4 space-y-3 overflow-hidden"
+                >
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <FloatingInput
+                      label="License number"
+                      value={licenseNumber}
+                      onChange={(e) => setLicenseNumber(e.target.value)}
+                      error={errors.licenseNumber}
+                    />
+                    <FloatingInput
+                      label="Issuing state / region"
+                      value={licenseState}
+                      onChange={(e) => setLicenseState(e.target.value)}
+                      error={errors.licenseState}
+                    />
+                  </div>
+                  <FloatingInput
+                    label="Practice name"
+                    value={practiceName}
+                    onChange={(e) => setPracticeName(e.target.value)}
+                    error={errors.practiceName}
+                  />
+                  <FloatingInput
+                    label="Practice address"
+                    value={practiceAddress}
+                    onChange={(e) => setPracticeAddress(e.target.value)}
+                    error={errors.practiceAddress}
+                  />
+                  <FloatingInput
+                    label="Practice phone"
+                    type="tel"
+                    value={practicePhone}
+                    onChange={(e) => setPracticePhone(e.target.value)}
+                    error={errors.practicePhone}
+                  />
+                </motion.div>
               )}
             </div>
 

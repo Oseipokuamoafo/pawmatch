@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { AdminNavMenu } from "./nav/AdminNavMenu";
 import { NavBadgeLink } from "./nav/NavBadgeLink";
 import { ProfileDropdown } from "./nav/ProfileDropdown";
 import { ThemeToggle } from "./ThemeToggle";
@@ -17,6 +18,7 @@ export async function TopNav() {
   const role = session?.user?.role;
   const isBreeder = role === "BREEDER";
   const isAdmin = role === "ADMIN";
+  const isVet = role === "VET";
   const isVerified = Boolean(session?.user?.isVerified);
 
   // createdAt isn't on the JWT session — fetch it once for the dropdown footer.
@@ -60,12 +62,12 @@ export async function TopNav() {
             {isBreeder && !isVerified && (
               <NavLink href="/dashboard/verify">Get verified</NavLink>
             )}
-            {isAdmin && (
-              <>
-                <NavLink href="/admin/verifications">Verify queue</NavLink>
-                <NavLink href="/admin/reports">Reports</NavLink>
-              </>
+            {isVet && (
+              <NavBadgeLink href="/dashboard/vet" source="vetPendingCosigns">
+                Vet inbox
+              </NavBadgeLink>
             )}
+            {isAdmin && <AdminNavMenu />}
             {isVerified && (
               <span className="hidden md:inline-flex">
                 <VerificationBadge size="sm" />

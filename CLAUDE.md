@@ -257,8 +257,59 @@ New features must integrate with existing code, not replace it.
 - [x] Match request system (`/matches`)
 - [x] Real-time chat (Socket.io custom server with auth + typing + read receipts + scam detection)
 - [x] Breeding contracts (`pdf-lib`, 3 templates, streamed PDF)
-- [ ] Nav badges driven by real unread counts (currently per-page only)
-- [ ] Cross-pet activity feed on the dashboard pulling matches + messages
+- [x] Nav badges driven by real unread counts (shared `useCounts` hook
+  against `/api/counts`, terracotta pill on Matches + Messages, 30s
+  refetch + window-focus refresh, ring-matched to the nav background
+  in both themes)
+- [x] Cross-pet activity feed on the dashboard pulling matches + messages
+  (`message.received` / `message.flagged` event variants; messages
+  decrypted at the server boundary, flagged ones surface with a
+  terracotta-tinted preview)
+- [x] Vet network — slice 1: `VET` role + `VetApplicationStatus` enum +
+  license fields on `User`; sign-up form carries an optional
+  `vetApplication` block; admin queue at `/admin/vets` (approve →
+  role becomes VET + email; reject → email with notes); `AdminNavMenu`
+  groups Verify queue + Vet queue + Reports under one disclosure.
+- [x] Vet network — slice 2: co-sign flow. Owner picks a vet on each
+  unverified health record via `<RequestCosignDialog>` (searchable
+  picker hits `/api/vet/search`); request stored in
+  `PetHealth.requestedVetId`. Vet's inbox lives at `/dashboard/vet`,
+  surfaces `requestedAt`-ordered records with sign/decline actions
+  via `/api/health/[recordId]/cosign`. Sign flips `isVerified`,
+  populates `verifiedByVetId` + `verifiedAt`, and clears the request;
+  decline preserves the record + sends the owner an email with vet's
+  notes. `HealthRecordCard` shows "Verified by Dr. X · Practice" on
+  signed records and an "Awaiting Dr. Y" pill on pending. TopNav
+  surfaces a "Vet inbox" badge for VET users driven by
+  `counts.vetPendingCosigns`.
+- [x] Vet network — slice 3: trust signals. `/dashboard` redirects VET
+  users to their inbox. New public directory at `/vets` (searchable
+  by state + name + practice) and per-vet profile at `/vets/[id]`
+  (signature count, breakdown by record type, top breeds signed —
+  PHI-free aggregates). "Verified by Dr. X" on `HealthRecordCard`
+  links to the vet's profile; the cosign picker exposes a "Profile →"
+  affordance per row.
+- [x] Vet network — slice 4: AI auto-screen. Sign-ups with a vet
+  application kick off `screenVetApplication()` (`src/lib/vet-screening.ts`)
+  in the background — Claude (`claude-haiku-4-5` by default, swap to
+  `claude-sonnet-4-6` via `VET_SCREEN_MODEL` if reliability slips)
+  uses the `web_search_20250305` server tool to cross-reference the
+  applicant's license against the issuing state's veterinary board.
+  Returns a JSON verdict ({status, confidence, reason, evidence[]})
+  constrained by `output_config.format`; rubric is cached on the
+  system-prompt prefix so we only pay full input cost on the first
+  applicant. `runScreenAndPersist` writes the verdict onto User
+  (`aiScreen*` fields) and **auto-approves** anything with
+  `status="match"` AND `confidence ≥ VET_SCREEN_AUTO_APPROVE_MIN`
+  (default 0.85) — sends the approval email + flips role to VET +
+  records `aiAutoApprovedAt`. Anything else routes to the admin
+  queue with the AI's evidence rendered inline (color-coded chip,
+  confidence %, source list with quotes) and an "AI recommends
+  approval" ring on the Approve button when applicable. Admins can
+  re-run via `POST /api/admin/vets/[userId]/screen`. Auto-approval
+  is the SLA mechanism that delivers sub-24h verification for the
+  majority of legitimate applications without sacrificing the human
+  audit trail on edge cases.
 
 ## Phase 3 — planned
 

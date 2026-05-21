@@ -21,7 +21,23 @@ datasource db {
 enum Role {
   OWNER
   BREEDER
+  VET
   ADMIN
+}
+
+enum VetApplicationStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AIScreenStatus {
+  PENDING
+  MATCH
+  MISMATCH
+  NO_DATA
+  ERROR
 }
 
 enum Species {
@@ -80,6 +96,30 @@ model User {
   verificationBadge   Boolean              @default(false)
   locationLat         Float?
   locationLng         Float?
+
+  // ── Vet program (slice 1 of vet network) ─────────────────────────
+  vetApplicationStatus VetApplicationStatus @default(NONE)
+  vetLicenseNumber     String?
+  vetLicenseState      String?
+  vetPracticeName      String?
+  vetPracticeAddress   String?
+  vetPracticePhone     String?
+  vetApprovedAt        DateTime?
+  vetApprovedById      String?
+
+  // ── AI auto-screen (slice 4 of vet network) ──────────────────────
+  /// Verdict from the Claude-API agent that cross-references the
+  /// applicant's license against the state veterinary medical board.
+  /// MATCH + high confidence auto-promotes the user; everything else
+  /// routes to the admin queue with the AI's evidence attached.
+  aiScreenStatus       AIScreenStatus?
+  aiScreenConfidence   Float?
+  aiScreenReason       String?
+  /// JSON array of { url, title, quote } evidence rows.
+  aiScreenEvidence     Json?
+  aiScreenedAt         DateTime?
+  aiAutoApprovedAt     DateTime?
+
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -91,8 +131,11 @@ model User {
   messages            Message[]
   reports             Report[]             @relation("ReporterReports")
   verificationRequest VerificationRequest?
+  vetCoSignatures     PetHealth[]          @relation("VetCoSignatures")
+  vetCosignRequests   PetHealth[]          @relation("VetCosignRequests")
 
   @@index([email])
+  @@index([vetApplicationStatus])
 }
 
 // ─── NextAuth required models ─────────────────────────────────────────────────
@@ -200,20 +243,32 @@ model PetPhoto {
 }
 
 model PetHealth {
-  id         String           @id @default(cuid())
-  petId      String
-  type       HealthRecordType
-  title      String
-  fileUrl    String?
-  isVerified Boolean          @default(false)
-  verifiedBy String?
-  verifiedAt DateTime?
-  notes      String?
-  recordDate DateTime
+  id              String           @id @default(cuid())
+  petId           String
+  type            HealthRecordType
+  title           String
+  fileUrl         String?
+  isVerified      Boolean          @default(false)
+  /// Legacy free-text marker ("self" / vet name string). Kept for back-compat.
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  /// FK to the vet (User where role=VET) who co-signed this record.
+  /// Owner self-reports flip to verified once a vet signs.
+  verifiedByVetId String?
+  /// Vet the owner has asked to co-sign. Set by the owner; cleared when
+  /// the vet signs (verifiedByVetId takes over) or declines.
+  requestedVetId  String?
+  requestedAt     DateTime?
+  notes           String?
+  recordDate      DateTime
 
-  pet        Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  pet             Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  verifiedByVet   User?            @relation("VetCoSignatures", fields: [verifiedByVetId], references: [id])
+  requestedVet    User?            @relation("VetCosignRequests", fields: [requestedVetId], references: [id])
 
   @@index([petId])
+  @@index([verifiedByVetId])
+  @@index([requestedVetId])
 }
 
 model PetTrait {

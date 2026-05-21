@@ -8,7 +8,7 @@ interface NavBadgeLinkProps {
   href: string;
   children: React.ReactNode;
   /** Which counts field drives the badge. */
-  source: "pendingMatches" | "unreadMessages";
+  source: "pendingMatches" | "unreadMessages" | "vetPendingCosigns";
   /** Hide on the page that owns the inbox so it doesn't double-shout. */
   hideOnActive?: boolean;
 }

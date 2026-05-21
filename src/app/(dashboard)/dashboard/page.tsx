@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { decryptMessage } from "@/lib/crypto";
 import { summarizeHeat } from "@/lib/heat";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
+import { VetApplicationPending } from "@/components/vet/VetApplicationPending";
 import {
   bestMatchScoresByPet,
   computeStats,
@@ -18,6 +19,43 @@ import type { HeatScheduleEntry } from "@/components/heat/HeatScheduleWidget";
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login?callbackUrl=/dashboard");
+
+  // VET users have no pets/matches — bounce them straight to the inbox.
+  if (session.user.role === "VET") {
+    redirect("/dashboard/vet");
+  }
+
+  // Vet-only applicants land here with role=OWNER (placeholder) +
+  // vetApplicationStatus=PENDING + zero pets. Give them a dedicated
+  // "application in review" landing instead of the empty owner dashboard
+  // they didn't sign up to see.
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      name: true,
+      vetApplicationStatus: true,
+      vetPracticeName: true,
+      vetLicenseState: true,
+      aiScreenStatus: true,
+      createdAt: true,
+    },
+  });
+  if (me?.vetApplicationStatus === "PENDING") {
+    const petCount = await prisma.pet.count({
+      where: { ownerId: session.user.id },
+    });
+    if (petCount === 0) {
+      return (
+        <VetApplicationPending
+          name={me.name}
+          practiceName={me.vetPracticeName}
+          licenseState={me.vetLicenseState}
+          aiScreenStatus={me.aiScreenStatus}
+          submittedAt={me.createdAt.toISOString()}
+        />
+      );
+    }
+  }
 
   const userId = session.user.id;
   const isBreeder = session.user.role === "BREEDER";

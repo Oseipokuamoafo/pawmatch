@@ -134,6 +134,142 @@ export async function sendVerificationRejected(opts: {
   void resend;
 }
 
+/* ─── Vet network ────────────────────────────────────────────────────── */
+
+export async function sendVetApplicationApproved(opts: {
+  to: string;
+  name: string | null;
+  practiceName: string | null;
+}) {
+  const subject = "You're a verified vet on PawMatch";
+  const html = brandedTemplate({
+    eyebrow: "Approved",
+    headline: "Welcome to the vet network.",
+    body: `<p>Hi Dr. ${escape(opts.name ?? "there")},</p>
+      <p>Your veterinary license has been verified${
+        opts.practiceName ? ` for ${escape(opts.practiceName)}` : ""
+      }. Your account now carries the VET role — owners can request your
+      signature on their pets&apos; health records, and your co-signature
+      is what graduates a self-reported record to verified.</p>
+      <p>Head to your dashboard to see incoming verification requests.</p>`,
+    ctaLabel: "Open vet dashboard",
+    ctaHref: `${APP_URL}/dashboard`,
+  });
+  await safeSend({ to: opts.to, subject, html });
+}
+
+export async function sendVetApplicationRejected(opts: {
+  to: string;
+  name: string | null;
+  notes?: string | null;
+}) {
+  const subject = "An update on your PawMatch vet application";
+  const reason = opts.notes?.trim()
+    ? `<div style="margin:24px 0;padding:16px 18px;border-radius:14px;background:#FDF5F1;border:1px solid rgba(201,75,42,0.15);color:#3D2A1A">
+         <p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:#C94B2A">Reviewer notes</p>
+         <p style="margin:0;line-height:1.6">${escape(opts.notes!.trim())}</p>
+       </div>`
+    : "";
+  const html = brandedTemplate({
+    eyebrow: "Not approved",
+    headline: "We can't verify your license yet.",
+    body: `<p>Hi ${escape(opts.name ?? "there")},</p>
+      <p>Your vet application wasn't approved this time. You can update your
+      practice details from your account settings and request another review.</p>
+      ${reason}`,
+    ctaLabel: "Update details",
+    ctaHref: `${APP_URL}/dashboard`,
+  });
+  await safeSend({ to: opts.to, subject, html });
+}
+
+/* ─── Vet co-sign flow ──────────────────────────────────────────────── */
+
+export async function sendVetCosignRequested(opts: {
+  to: string;
+  vetName: string | null;
+  ownerName: string | null;
+  petName: string;
+  recordTitle: string;
+  recordType: string;
+}) {
+  const subject = `Co-sign request: ${opts.petName}'s ${opts.recordTitle}`;
+  const html = brandedTemplate({
+    eyebrow: "Co-sign request",
+    headline: `${escape(opts.ownerName ?? "An owner")} needs your signature.`,
+    body: `<p>Hi Dr. ${escape(opts.vetName ?? "there")},</p>
+      <p><strong>${escape(opts.ownerName ?? "An owner")}</strong> asked you to
+      co-sign a <strong>${escape(opts.recordType.toLowerCase())}</strong>
+      record for their pet <strong>${escape(opts.petName)}</strong>:</p>
+      <p style="font-family:Georgia,serif;font-size:20px;font-weight:700;color:#1C1008;margin:18px 0 4px">
+        ${escape(opts.recordTitle)}
+      </p>
+      <p style="margin:0;color:#3D2A1A">Open your vet inbox to review the
+      record, sign it, or decline with a note.</p>`,
+    ctaLabel: "Open vet inbox",
+    ctaHref: `${APP_URL}/dashboard/vet`,
+  });
+  await safeSend({ to: opts.to, subject, html });
+}
+
+export async function sendVetCosignSigned(opts: {
+  to: string;
+  ownerName: string | null;
+  vetName: string | null;
+  practiceName: string | null;
+  petName: string;
+  recordTitle: string;
+  petId: string;
+}) {
+  const subject = `Dr. ${opts.vetName ?? "your vet"} signed ${opts.petName}'s record`;
+  const html = brandedTemplate({
+    eyebrow: "Record verified",
+    headline: `${escape(opts.recordTitle)} is now verified.`,
+    body: `<p>Hi ${escape(opts.ownerName ?? "there")},</p>
+      <p>Dr. <strong>${escape(opts.vetName ?? "your vet")}</strong>${
+        opts.practiceName
+          ? ` of <strong>${escape(opts.practiceName)}</strong>`
+          : ""
+      } co-signed <strong>${escape(opts.petName)}</strong>'s record
+      <em>${escape(opts.recordTitle)}</em>. It now carries the verified badge
+      across PawMatch — matches see a stronger health score and a real vet
+      attached to the record.</p>`,
+    ctaLabel: "See the record",
+    ctaHref: `${APP_URL}/dashboard/pets/${opts.petId}/health`,
+  });
+  await safeSend({ to: opts.to, subject, html });
+}
+
+export async function sendVetCosignDeclined(opts: {
+  to: string;
+  ownerName: string | null;
+  vetName: string | null;
+  petName: string;
+  recordTitle: string;
+  notes?: string | null;
+  petId: string;
+}) {
+  const subject = `Co-sign declined for ${opts.petName}'s ${opts.recordTitle}`;
+  const reason = opts.notes?.trim()
+    ? `<div style="margin:24px 0;padding:16px 18px;border-radius:14px;background:#FDF5F1;border:1px solid rgba(201,75,42,0.15);color:#3D2A1A">
+         <p style="margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:600;color:#C94B2A">Vet notes</p>
+         <p style="margin:0;line-height:1.6">${escape(opts.notes!.trim())}</p>
+       </div>`
+    : "";
+  const html = brandedTemplate({
+    eyebrow: "Co-sign declined",
+    headline: `Dr. ${escape(opts.vetName ?? "your vet")} couldn't sign this record.`,
+    body: `<p>Hi ${escape(opts.ownerName ?? "there")},</p>
+      <p>The co-sign request for <strong>${escape(opts.petName)}</strong>'s
+      record <em>${escape(opts.recordTitle)}</em> was declined. You can pick
+      another vet or upload additional documentation and try again.</p>
+      ${reason}`,
+    ctaLabel: "Update record",
+    ctaHref: `${APP_URL}/dashboard/pets/${opts.petId}/health`,
+  });
+  await safeSend({ to: opts.to, subject, html });
+}
+
 /* ─── Internals ──────────────────────────────────────────────────────── */
 
 async function safeSend({
