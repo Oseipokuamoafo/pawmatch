@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { auth } from "@/lib/auth";
-import { SignOutButton } from "./SignOutButton";
+import { prisma } from "@/lib/prisma";
+import { ProfileDropdown } from "./nav/ProfileDropdown";
 import { ThemeToggle } from "./ThemeToggle";
 import { VerificationBadge } from "./ui/VerificationBadge";
 
@@ -16,10 +17,16 @@ export async function TopNav() {
   const isBreeder = role === "BREEDER";
   const isAdmin = role === "ADMIN";
   const isVerified = Boolean(session?.user?.isVerified);
-  const initial =
-    session?.user?.name?.[0]?.toUpperCase() ??
-    session?.user?.email?.[0]?.toUpperCase() ??
-    "·";
+
+  // createdAt isn't on the JWT session — fetch it once for the dropdown footer.
+  const memberSince = session?.user?.id
+    ? (
+        await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { createdAt: true },
+        })
+      )?.createdAt.toISOString() ?? null
+    : null;
 
   return (
     <header
@@ -60,13 +67,14 @@ export async function TopNav() {
             )}
             <span className="mx-1 hidden h-5 w-px bg-sand sm:inline-block" />
             <ThemeToggle />
-            <SignOutButton />
-            <span
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-terracotta text-sm font-semibold text-white"
-              title={session?.user?.name ?? session?.user?.email ?? undefined}
-            >
-              {initial}
-            </span>
+            <ProfileDropdown
+              memberSince={memberSince}
+              fallbackName={session?.user?.name ?? null}
+              fallbackEmail={session?.user?.email ?? null}
+              fallbackImage={session?.user?.image ?? null}
+              fallbackRole={role}
+              fallbackIsVerified={isVerified}
+            />
           </div>
         ) : (
           <div className="flex items-center gap-2 sm:gap-3">
