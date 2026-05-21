@@ -1,14 +1,13 @@
+import {
+  pendingViewStateFor,
+  type AIScreenStatus,
+} from "@/lib/vet-application-state";
+
 interface VetApplicationPendingProps {
   name: string | null;
   practiceName: string | null;
   licenseState: string | null;
-  aiScreenStatus:
-    | "PENDING"
-    | "MATCH"
-    | "MISMATCH"
-    | "NO_DATA"
-    | "ERROR"
-    | null;
+  aiScreenStatus: AIScreenStatus;
   submittedAt: string;
 }
 
@@ -19,7 +18,8 @@ interface VetApplicationPendingProps {
  *
  * We don't expose AI verdict details (status / confidence / evidence) on
  * this view — that's an admin-only signal. The applicant just sees that
- * something is happening and when to expect a decision.
+ * something is happening and when to expect a decision. ERROR cases look
+ * exactly like PENDING from this view (admin picks them up off-screen).
  */
 export function VetApplicationPending({
   name,
@@ -34,14 +34,7 @@ export function VetApplicationPending({
     year: "numeric",
   });
 
-  // Friendly status copy — never the raw enum.
-  const screening = aiScreenStatus === "PENDING" || aiScreenStatus === null;
-  const headline = screening
-    ? "We're checking your license."
-    : "Final review with our team.";
-  const subhead = screening
-    ? "Our automated screen is cross-referencing your details against your state veterinary medical board. This usually completes within a few minutes."
-    : "A PawMatch admin is doing the final sign-off. We'll email you within 24 hours.";
+  const view = pendingViewStateFor(aiScreenStatus);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-14 md:py-20">
@@ -60,9 +53,11 @@ export function VetApplicationPending({
           Welcome, Dr. {name?.split(" ").pop() ?? "—"}.
         </h1>
 
-        <p className="mt-4 text-base leading-relaxed text-dark">{headline}</p>
+        <p className="mt-4 text-base leading-relaxed text-dark">
+          {view.headline}
+        </p>
         <p className="mt-2 text-base leading-relaxed text-dark-muted">
-          {subhead}
+          {view.subhead}
         </p>
 
         <ol className="mt-8 space-y-4">
@@ -70,8 +65,8 @@ export function VetApplicationPending({
             <span className="text-dark-muted">{submittedLabel}</span>
           </Step>
           <Step
-            done={aiScreenStatus !== null && aiScreenStatus !== "PENDING"}
-            inflight={screening}
+            done={view.screenStep === "done"}
+            inflight={view.screenStep === "inflight"}
             label="Cross-referenced with state board"
           >
             <span className="text-dark-muted">
@@ -82,7 +77,7 @@ export function VetApplicationPending({
           </Step>
           <Step
             done={false}
-            inflight={!screening}
+            inflight={view.adminStep === "inflight"}
             label="Admin sign-off + welcome email"
           >
             <span className="text-dark-muted">
