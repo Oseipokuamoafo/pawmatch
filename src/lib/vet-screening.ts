@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * Slice 4 — AI auto-screen for vet license applications.
@@ -178,6 +179,15 @@ export async function screenVetApplication(
     } else {
       console.error("[vet-screening] unexpected error:", err);
     }
+    Sentry.captureException(err, {
+      tags: { surface: "vet-screening", model: DEFAULT_MODEL },
+      extra: {
+        licenseState: applicant.licenseState,
+        // Don't leak the license number or applicant name to Sentry —
+        // PII boundary. State is fine; it's how we segment errors by
+        // state-board flakiness.
+      },
+    });
     return null;
   }
 }

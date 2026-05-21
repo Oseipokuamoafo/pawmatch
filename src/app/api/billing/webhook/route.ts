@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import * as Sentry from "@sentry/nextjs";
 
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
@@ -80,6 +81,10 @@ export async function POST(req: Request) {
       `[billing/webhook] failed to process ${event.type} (${event.id}):`,
       err,
     );
+    Sentry.captureException(err, {
+      tags: { surface: "billing-webhook", eventType: event.type },
+      extra: { eventId: event.id },
+    });
     // 200 anyway — see note (3) above. The next webhook (or admin
     // re-run) will re-sync.
   }

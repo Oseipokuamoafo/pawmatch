@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import * as Sentry from "@sentry/nextjs";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -229,6 +230,9 @@ export async function POST(req: Request, ctx: Ctx) {
       userMessage: parsed.data.message,
     });
   } catch (err) {
+    Sentry.captureException(err, {
+      tags: { surface: "breeding-assistant", petId: id },
+    });
     const message = err instanceof Error ? err.message : "Assistant failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
