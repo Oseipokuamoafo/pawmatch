@@ -68,13 +68,14 @@ export function PricingTable({
             fontSize: "clamp(2.5rem, 6vw, 4rem)",
           }}
         >
-          Free for everyone.
-          <br className="hidden sm:block" /> Pro+ for the deep work.
+          Free for owners.
+          <br className="hidden sm:block" /> Built for the vets behind them.
         </h1>
         <p className="mt-5 mx-auto max-w-2xl text-base leading-relaxed text-dark-muted">
           Every PawMatch account ships with verified matching and the vet
-          network. Pro+ adds the Claude-powered breeding assistant — context-
-          aware genetics advice that actually reads your pet&apos;s file.
+          network. Pro+ unlocks the AI breeding assistant for owners and
+          breeders. The Vet Practice tier turns PawMatch into a co-sign
+          inbox and compliance audit trail for your clinic.
         </p>
       </header>
 
@@ -84,7 +85,7 @@ export function PricingTable({
         </div>
       )}
 
-      <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
+      <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-6">
         {/* Free */}
         <article className="card flex flex-col p-8">
           <p className="eyebrow">Free</p>
@@ -204,12 +205,71 @@ export function PricingTable({
             </p>
           </div>
         </article>
+
+        {/* Vet Practice */}
+        <article className="card flex flex-col p-8">
+          <p className="eyebrow">Vet Practice</p>
+          <h2
+            className="mt-2 leading-tight text-dark"
+            style={{
+              fontFamily: "var(--font-playfair, Georgia, serif)",
+              fontWeight: 900,
+              fontSize: "2rem",
+            }}
+          >
+            $99+
+            <span className="ml-1 text-base font-normal text-dark-muted">
+              / mo · per practice
+            </span>
+          </h2>
+          <p className="mt-2 text-sm text-dark-muted">
+            For licensed veterinary practices co-signing health records on
+            PawMatch.
+          </p>
+          <ul className="mt-6 space-y-3 text-sm">
+            <Check strong>
+              <strong>Vet co-sign inbox</strong> with real-time owner
+              requests and one-click sign / decline
+            </Check>
+            <Check strong>
+              <strong>Compliance audit trail</strong> — exportable record
+              of every signature for your practice files
+            </Check>
+            <Check>
+              Public vet-profile listing in the PawMatch directory
+            </Check>
+            <Check>
+              Per-record co-sign fee revenue share (clinics keep the
+              majority of every signed record)
+            </Check>
+            <Check>
+              Bulk staff seats — admins, technicians, associate vets
+            </Check>
+            <Check>
+              Priority support + roadmap input
+            </Check>
+          </ul>
+          <div className="mt-auto pt-8">
+            <Link
+              href="mailto:hello@pawmatch.app?subject=Vet%20Practice%20Tier%20Inquiry"
+              className="btn-secondary inline-flex w-full justify-center !py-3"
+            >
+              Talk to sales
+            </Link>
+            <p className="mt-3 text-center text-[11px] text-dark-muted">
+              Pricing scales with practice size · Pilot program available
+            </p>
+          </div>
+        </article>
       </div>
 
       <p className="mt-12 text-center text-sm text-dark-muted">
-        Building a kennel club or vet practice integration?{" "}
-        <Link href="/" className="font-semibold text-terracotta hover:underline">
-          Talk to us about enterprise
+        Running a kennel club, breed registry, or DNA-test partnership?{" "}
+        <Link
+          href="mailto:hello@pawmatch.app?subject=Partnership%20Inquiry"
+          className="font-semibold text-terracotta hover:underline"
+        >
+          Let&apos;s talk
         </Link>
         .
       </p>
