@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
+import Script from "next/script";
 
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/QueryProvider";
@@ -45,9 +46,16 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Inline theme boot — runs synchronously before paint to prevent
-            a flash of the wrong theme. */}
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+        {/* Inline theme boot — runs synchronously before paint to
+            prevent a flash of the wrong theme. next/script with
+            beforeInteractive is the Next.js 16 / React 19 way to do
+            this; a raw <script> tag triggers a React console warning
+            because client renders don't execute script tags. */}
+        <Script
+          id="theme-boot"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: themeBootScript }}
+        />
       </head>
       <body className="min-h-full flex flex-col bg-cream text-dark antialiased">
         <ThemeProvider>

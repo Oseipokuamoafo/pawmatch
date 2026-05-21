@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signUpSchema } from "@/lib/validations/auth";
 import { sendVetApplicationReceived } from "@/lib/email";
-import { kickoffScreen } from "@/lib/vet-screening-handler";
+import { inngest } from "@/lib/inngest";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -70,12 +70,12 @@ export async function POST(req: Request) {
     },
   });
 
-  // Fire the Claude-API auto-screen in the background. The custom Next +
-  // Socket.io server (src/server.ts) is a long-running process so the
-  // background promise completes; high-confidence matches auto-promote
-  // the user to VET without waiting on a human admin. We also send a
-  // "thanks for applying" email immediately so applicants don't sit in
-  // silence between submit and approve.
+  // Dispatch the AI auto-screen via Inngest (step-level retries +
+  // observability, replaces the previous fire-and-forget Promise).
+  // The submission email stays inline — it's a short fire-and-forget
+  // we can tolerate, and migrating every email to the queue is a
+  // larger refactor we'll do separately. High-confidence matches
+  // auto-promote the user to VET without waiting on a human admin.
   if (vetApplication) {
     void sendVetApplicationReceived({
       to: user.email,
@@ -85,12 +85,16 @@ export async function POST(req: Request) {
     }).catch((err) => {
       console.error("[register] vet application email failed:", err);
     });
-    kickoffScreen(user.id, {
-      name,
-      licenseNumber: vetApplication.licenseNumber,
-      licenseState: vetApplication.licenseState,
-      practiceName: vetApplication.practiceName,
-      practiceAddress: vetApplication.practiceAddress,
+    await inngest.send({
+      name: "vet/application.submitted",
+      data: {
+        userId: user.id,
+        name,
+        licenseNumber: vetApplication.licenseNumber,
+        licenseState: vetApplication.licenseState,
+        practiceName: vetApplication.practiceName,
+        practiceAddress: vetApplication.practiceAddress,
+      },
     });
   }
 

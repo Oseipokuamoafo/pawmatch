@@ -116,8 +116,10 @@ export async function runScreenAndPersist(
 }
 
 /**
- * Fire-and-forget wrapper. Logs errors so they don't disappear silently
- * and never throws to the caller.
+ * @deprecated Prefer dispatching the `vet/application.submitted` event
+ * via `inngest.send()` instead — that path has step-level retries,
+ * idempotency, and observability. This direct fire-and-forget
+ * wrapper is kept only for tests + emergency manual invocations.
  */
 export function kickoffScreen(
   userId: string,
