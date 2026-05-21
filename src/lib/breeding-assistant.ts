@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+import type { HeatCycleRow, HeatSummary } from "@/lib/heat";
 import type {
   Breed,
   Pet,
@@ -65,6 +66,12 @@ export interface PetContextInput {
     | "lifespanMaxYears"
     | "temperament"
   > | null;
+  /** Logged heat cycles (FEMALE pets only). Pass an empty array for
+   *  MALE pets — the section is omitted from the prompt. */
+  heatCycles: HeatCycleRow[];
+  /** Derived summary from `summarizeHeat()`. Null when sex=MALE or
+   *  there are no cycles to summarize. */
+  heatSummary: HeatSummary | null;
 }
 
 export interface ChatTurn {
@@ -150,6 +157,19 @@ export function buildSystemPrompt(ctx: PetContextInput): string {
     }
   }
   lines.push("");
+
+  // Heat-cycle history — FEMALE pets only. Skip the whole block for
+  // MALE so we don't waste context tokens (and don't confuse the model
+  // into discussing cycles where they don't apply).
+  if (ctx.pet.sex === "FEMALE") {
+    lines.push("--- Heat cycle history ---");
+    if (ctx.heatCycles.length === 0) {
+      lines.push("(none logged — owner has not tracked heat cycles yet)");
+    } else {
+      lines.push(formatHeatSummary(ctx.heatSummary, ctx.heatCycles));
+    }
+    lines.push("");
+  }
 
   lines.push("--- Breeding goals (owner-stated) ---");
   if (ctx.breedingGoals.length === 0) {
@@ -328,4 +348,62 @@ function formatGoal(g: PetContextInput["breedingGoals"][number]): string {
 function ageInYears(dob: Date): number {
   const diff = Date.now() - dob.getTime();
   return diff / (365.25 * 24 * 60 * 60 * 1000);
+}
+
+function formatHeatSummary(
+  summary: HeatSummary | null,
+  cycles: HeatCycleRow[],
+): string {
+  const lines: string[] = [];
+  lines.push(`- Total cycles logged: ${cycles.length}`);
+
+  if (summary) {
+    if (summary.isActive) {
+      lines.push("- Currently in heat: YES");
+      if (summary.fertileWindow) {
+        const s = toDate(summary.fertileWindow.start)
+          .toISOString()
+          .slice(0, 10);
+        const e = toDate(summary.fertileWindow.end).toISOString().slice(0, 10);
+        lines.push(`- Fertile window (this cycle): ${s} → ${e}`);
+      }
+    } else {
+      lines.push("- Currently in heat: no");
+    }
+    if (summary.averageCycleDays !== null) {
+      lines.push(
+        `- Average gap between cycles: ${summary.averageCycleDays} days`,
+      );
+    }
+    if (summary.nextPredictedStart) {
+      const d = summary.nextPredictedStart.toISOString().slice(0, 10);
+      const daysLabel =
+        summary.daysUntilNext === null
+          ? ""
+          : summary.daysUntilNext < 0
+            ? ` (${Math.abs(summary.daysUntilNext)} days overdue)`
+            : ` (in ${summary.daysUntilNext} days)`;
+      lines.push(`- Next predicted cycle start: ${d}${daysLabel}`);
+    }
+  }
+
+  // Last up-to-5 cycle dates, most recent first — gives the model
+  // concrete history to reason about.
+  const recent = cycles.slice(0, 5);
+  if (recent.length > 0) {
+    lines.push("- Recent cycles (most recent first):");
+    for (const c of recent) {
+      const start = toDate(c.startDate).toISOString().slice(0, 10);
+      const end = c.endDate
+        ? toDate(c.endDate).toISOString().slice(0, 10)
+        : "ongoing";
+      lines.push(`    · ${start} → ${end}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function toDate(d: string | Date): Date {
+  return typeof d === "string" ? new Date(d) : d;
 }

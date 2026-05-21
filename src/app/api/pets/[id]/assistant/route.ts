@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isBreedingAssistantEnabled } from "@/lib/feature-flags";
+import { summarizeHeat } from "@/lib/heat";
 import {
   buildSystemPrompt,
   streamAssistantReply,
@@ -135,6 +136,19 @@ export async function POST(req: Request, ctx: Ctx) {
           notes: true,
         },
       },
+      // Heat cycles only matter for FEMALE pets — but we still fetch
+      // (cheap, indexed) so the system-prompt logic stays consistent.
+      heatCycles: {
+        orderBy: { startDate: "desc" },
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          peakFertilityStart: true,
+          peakFertilityEnd: true,
+          notes: true,
+        },
+      },
     },
   });
   if (!pet) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -178,6 +192,13 @@ export async function POST(req: Request, ctx: Ctx) {
     content: m.content,
   }));
 
+  // Summarize heat cycles only for FEMALE pets — saves a few cycles and
+  // keeps the prompt builder's "this section applies" check unambiguous.
+  const heatSummary =
+    pet.sex === "FEMALE" && pet.heatCycles.length > 0
+      ? summarizeHeat(pet.heatCycles, pet.species)
+      : null;
+
   const petCtx: PetContextInput = {
     pet: {
       id: pet.id,
@@ -194,6 +215,8 @@ export async function POST(req: Request, ctx: Ctx) {
     traits: pet.traits,
     breedingGoals: pet.breedingGoals,
     breed,
+    heatCycles: pet.heatCycles,
+    heatSummary,
   };
 
   const systemPrompt = buildSystemPrompt(petCtx);

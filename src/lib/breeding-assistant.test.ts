@@ -27,6 +27,8 @@ function ctx(over: Partial<PetContextInput> = {}): PetContextInput {
     traits: [],
     breedingGoals: [],
     breed: null,
+    heatCycles: [],
+    heatSummary: null,
     ...over,
   };
 }
@@ -157,6 +159,118 @@ test("buildSystemPrompt renders breeding goals with max COI %", () => {
   assert.match(out, /Preferred breeds: Labrador Retriever, Golden Retriever/);
   assert.match(out, /Max acceptable COI: 8\.0%/);
   assert.match(out, /Looking for show-line/);
+});
+
+/* ─── Heat cycles ────────────────────────────────────────────────────── */
+
+test("buildSystemPrompt renders heat cycle section for FEMALE w/ cycles", () => {
+  const out = buildSystemPrompt(
+    ctx({
+      heatCycles: [
+        {
+          id: "h1",
+          startDate: new Date("2026-02-01"),
+          endDate: new Date("2026-02-21"),
+          peakFertilityStart: null,
+          peakFertilityEnd: null,
+        },
+        {
+          id: "h2",
+          startDate: new Date("2025-08-15"),
+          endDate: new Date("2025-09-04"),
+          peakFertilityStart: null,
+          peakFertilityEnd: null,
+        },
+      ],
+      heatSummary: {
+        isActive: false,
+        activeCycleId: null,
+        lastCompleted: null,
+        averageCycleDays: 170,
+        nextPredictedStart: new Date("2026-07-21"),
+        daysUntilNext: 14,
+        fertileWindow: null,
+        total: 2,
+      },
+    }),
+  );
+  assert.match(out, /--- Heat cycle history ---/);
+  assert.match(out, /Total cycles logged: 2/);
+  assert.match(out, /Currently in heat: no/);
+  assert.match(out, /Average gap between cycles: 170 days/);
+  assert.match(out, /Next predicted cycle start: 2026-07-21 \(in 14 days\)/);
+  assert.match(out, /2026-02-01 → 2026-02-21/);
+});
+
+test("buildSystemPrompt notes when FEMALE has no cycles logged", () => {
+  const out = buildSystemPrompt(ctx());
+  assert.match(out, /--- Heat cycle history ---/);
+  assert.match(out, /\(none logged — owner has not tracked heat cycles yet\)/);
+});
+
+test("buildSystemPrompt omits heat cycle section entirely for MALE pets", () => {
+  const out = buildSystemPrompt(
+    ctx({ pet: { ...basePet, sex: "MALE" } }),
+  );
+  assert.doesNotMatch(out, /Heat cycle history/);
+});
+
+test("buildSystemPrompt renders fertile window when actively in heat", () => {
+  const out = buildSystemPrompt(
+    ctx({
+      heatCycles: [
+        {
+          id: "h1",
+          startDate: new Date("2026-05-15"),
+          endDate: null,
+          peakFertilityStart: new Date("2026-05-23"),
+          peakFertilityEnd: new Date("2026-05-27"),
+        },
+      ],
+      heatSummary: {
+        isActive: true,
+        activeCycleId: "h1",
+        lastCompleted: null,
+        averageCycleDays: null,
+        nextPredictedStart: null,
+        daysUntilNext: null,
+        fertileWindow: {
+          start: new Date("2026-05-23"),
+          end: new Date("2026-05-27"),
+        },
+        total: 1,
+      },
+    }),
+  );
+  assert.match(out, /Currently in heat: YES/);
+  assert.match(out, /Fertile window \(this cycle\): 2026-05-23 → 2026-05-27/);
+});
+
+test("buildSystemPrompt flags overdue cycles", () => {
+  const out = buildSystemPrompt(
+    ctx({
+      heatCycles: [
+        {
+          id: "h1",
+          startDate: new Date("2025-01-01"),
+          endDate: new Date("2025-01-21"),
+          peakFertilityStart: null,
+          peakFertilityEnd: null,
+        },
+      ],
+      heatSummary: {
+        isActive: false,
+        activeCycleId: null,
+        lastCompleted: null,
+        averageCycleDays: 180,
+        nextPredictedStart: new Date("2025-07-01"),
+        daysUntilNext: -45,
+        fertileWindow: null,
+        total: 1,
+      },
+    }),
+  );
+  assert.match(out, /Next predicted cycle start: 2025-07-01 \(45 days overdue\)/);
 });
 
 /* ─── Rubric invariants ──────────────────────────────────────────────── */
