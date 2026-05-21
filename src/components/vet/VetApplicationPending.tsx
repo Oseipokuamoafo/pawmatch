@@ -2,6 +2,7 @@ import {
   pendingViewStateFor,
   type AIScreenStatus,
 } from "@/lib/vet-application-state";
+import { VetStatusPoller } from "./VetStatusPoller";
 
 interface VetApplicationPendingProps {
   name: string | null;
@@ -38,6 +39,13 @@ export function VetApplicationPending({
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-14 md:py-20">
+      {/* Auto-refresh when the AI screen completes or admin approves —
+          applicant never has to manually reload. */}
+      <VetStatusPoller
+        initialRole="OWNER"
+        initialApplicationStatus="PENDING"
+        initialAIScreenStatus={aiScreenStatus}
+      />
       <div className="rounded-3xl border border-sand bg-surface p-8 shadow-card md:p-12">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-terracotta">
           Vet network · application in review
