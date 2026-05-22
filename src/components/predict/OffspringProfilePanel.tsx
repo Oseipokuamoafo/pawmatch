@@ -11,10 +11,24 @@ interface OffspringProfilePanelProps {
   petBName: string;
 }
 
+interface GallerySide {
+  petName: string;
+  breedName: string;
+  petPhoto: string | null;
+  breedHero: string | null;
+  references: { url: string; caption: string }[];
+}
+interface GalleryResponse {
+  parentA: GallerySide;
+  parentB: GallerySide;
+}
+
 /**
  * The holistic offspring-profile prediction panel — coat colors, size,
- * temperament, appearance, training notes. Streams from
- * /api/predict/offspring. Renders progressively as Claude generates.
+ * temperament, appearance, training notes. Streams the AI text from
+ * /api/predict/offspring, then loads a real-photo gallery from
+ * /api/predict/offspring/images so visitors see actual dogs of each
+ * parent breed (not AI-generated previews).
  */
 export function OffspringProfilePanel({
   petAId,
@@ -26,6 +40,7 @@ export function OffspringProfilePanel({
   const [text, setText] = useState("");
   const [streaming, setStreaming] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [gallery, setGallery] = useState<GalleryResponse | null>(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -33,6 +48,22 @@ export function OffspringProfilePanel({
     if (startedRef.current) return;
     startedRef.current = true;
     void runPrediction();
+    void loadGallery();
+
+    async function loadGallery() {
+      try {
+        const r = await fetch("/api/predict/offspring/images", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ petAId, petBId }),
+        });
+        if (!r.ok) return;
+        const data = (await r.json()) as GalleryResponse;
+        setGallery(data);
+      } catch {
+        /* gallery is decorative — failing silently is fine */
+      }
+    }
 
     async function runPrediction() {
       try {
@@ -89,6 +120,8 @@ export function OffspringProfilePanel({
         </p>
       </header>
 
+      {gallery && <ParentBreedGallery gallery={gallery} />}
+
       <article className="rounded-3xl border border-sand bg-surface p-6 shadow-card md:p-8">
         {streaming && text.length === 0 ? (
           <div className="flex items-center gap-2 text-sm text-dark-muted">
@@ -110,6 +143,115 @@ export function OffspringProfilePanel({
         )}
       </article>
     </section>
+  );
+}
+
+/* ─── Real-photo gallery ─────────────────────────────────────────────── */
+
+/**
+ * Renders a small gallery of REAL photographs of each parent breed,
+ * with a prominent disclaimer that offspring will combine parent
+ * traits in unpredictable ways. Deliberately not AI-generated — every
+ * photo here is a real licensed dog photo (Unsplash + the seeded pet
+ * photos).
+ */
+function ParentBreedGallery({ gallery }: { gallery: GalleryResponse }) {
+  function sideCards(side: GallerySide) {
+    const out: { url: string; caption: string }[] = [];
+    if (side.petPhoto) {
+      out.push({ url: side.petPhoto, caption: `${side.petName} — ${side.breedName}` });
+    }
+    if (side.breedHero && side.breedHero !== side.petPhoto) {
+      out.push({ url: side.breedHero, caption: `Typical ${side.breedName}` });
+    }
+    for (const r of side.references) {
+      if (out.length >= 3) break;
+      out.push(r);
+    }
+    return out.slice(0, 3);
+  }
+
+  const aCards = sideCards(gallery.parentA);
+  const bCards = sideCards(gallery.parentB);
+
+  return (
+    <section className="mb-6 rounded-3xl border border-sand bg-cream/40 p-5 md:p-6">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-terracotta">
+            Real photos · parent breeds
+          </p>
+          <h3
+            className="mt-1 leading-tight text-dark"
+            style={{
+              fontFamily: "var(--font-playfair, Georgia, serif)",
+              fontWeight: 800,
+              fontSize: "1.25rem",
+            }}
+          >
+            What the parent breeds look like
+          </h3>
+        </div>
+        <p className="max-w-md text-[12px] text-dark-muted leading-relaxed">
+          Actual licensed photographs of the two parent breeds — not AI
+          generations. The litter will combine traits from both parents in
+          varied, individually unique ways.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <SideColumn
+          title={`${gallery.parentA.petName} — ${gallery.parentA.breedName}`}
+          cards={aCards}
+        />
+        <SideColumn
+          title={`${gallery.parentB.petName} — ${gallery.parentB.breedName}`}
+          cards={bCards}
+        />
+      </div>
+
+      <p className="mt-5 rounded-2xl border border-sand bg-surface/70 px-4 py-3 text-[12px] leading-relaxed text-dark-muted">
+        <strong className="text-dark">Real photos, not predictions.</strong>{" "}
+        These are reference photographs of each parent&apos;s breed — they
+        show typical examples, not the actual offspring of this specific
+        pairing. Real litters vary significantly: puppies can take after
+        either parent, show intermediate features, or surface unexpected
+        coat patterns. Treat these as a visual reference for the genetic
+        starting point, not a guarantee of how the puppies will look.
+      </p>
+    </section>
+  );
+}
+
+function SideColumn({
+  title,
+  cards,
+}: {
+  title: string;
+  cards: { url: string; caption: string }[];
+}) {
+  return (
+    <div>
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-dark-muted">
+        {title}
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        {cards.map((c, i) => (
+          <figure key={`${c.url}-${i}`} className="overflow-hidden rounded-2xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={c.url}
+              alt={c.caption}
+              className="aspect-square w-full object-cover transition-transform hover:scale-[1.03]"
+              loading="lazy"
+            />
+            <figcaption className="mt-1 truncate text-[10px] text-dark-muted">
+              {c.caption}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
   );
 }
 
