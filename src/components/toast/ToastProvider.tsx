@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -67,26 +68,30 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [show]
   );
 
+  const value = useMemo(
+    () => ({ show, success, info, error }),
+    [show, success, info, error],
+  );
+
   return (
-    <ToastContext.Provider value={{ show, success, info, error }}>
+    <ToastContext.Provider value={value}>
       {children}
       <ToastViewport toasts={toasts} />
     </ToastContext.Provider>
   );
 }
 
+const NOOP_TOAST: ToastContextValue = {
+  show: () => undefined,
+  success: () => undefined,
+  info: () => undefined,
+  error: () => undefined,
+};
+
 export function useToast(): ToastContextValue {
-  const ctx = useContext(ToastContext);
-  if (!ctx) {
-    // Allow imports outside the provider to no-op gracefully
-    return {
-      show: () => undefined,
-      success: () => undefined,
-      info: () => undefined,
-      error: () => undefined,
-    };
-  }
-  return ctx;
+  // Outside a provider, hand back a stable no-op object so consumers
+  // that have `toast` in a hook-dep array don't churn on every render.
+  return useContext(ToastContext) ?? NOOP_TOAST;
 }
 
 /* ─── Viewport ───────────────────────────────────────────────────────── */

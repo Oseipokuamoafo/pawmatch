@@ -48,6 +48,11 @@ export function BreedingAssistant({
   const [maxTurns, setMaxTurns] = useState(50);
   const [loading, setLoading] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
+  // Tracks which petId we've already auto-loaded history for. Prevents an
+  // infinite GET loop when the server legitimately returns zero messages
+  // (without this gate, `messages.length === 0` stays true after fetch,
+  // `loading` flips back to false, and the effect re-fires forever).
+  const autoLoadedForPetRef = useRef<string | null>(null);
 
   const loadHistory = useCallback(async () => {
     setLoading(true);
@@ -59,18 +64,20 @@ export function BreedingAssistant({
       setTurnCount(data.turnCount);
       setMaxTurns(data.maxTurns);
     } catch (err) {
+      autoLoadedForPetRef.current = null;
       toast.error("Couldn't load chat", (err as Error).message);
     } finally {
       setLoading(false);
     }
   }, [petId, toast]);
 
-  // Lazy-load history the first time the panel opens.
+  // Lazy-load history the first time the panel opens for this pet.
   useEffect(() => {
-    if (open && messages.length === 0 && !loading) {
-      void loadHistory();
-    }
-  }, [open, messages.length, loading, loadHistory]);
+    if (!open) return;
+    if (autoLoadedForPetRef.current === petId) return;
+    autoLoadedForPetRef.current = petId;
+    void loadHistory();
+  }, [open, petId, loadHistory]);
 
   // Keep scroll pinned to the bottom as new tokens arrive.
   useEffect(() => {
