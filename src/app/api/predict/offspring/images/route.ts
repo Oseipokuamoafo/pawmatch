@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getBreedReferencePhotos } from "@/lib/breed-reference-photos";
+import { getMixBreedPhotos } from "@/lib/breed-mix-photos";
 
 /**
  * POST /api/predict/offspring/images
@@ -41,6 +42,9 @@ export interface OffspringGallerySide {
 export interface OffspringGalleryResponse {
   parentA: OffspringGallerySide;
   parentB: OffspringGallerySide;
+  /** Real photographs of actual mix-breed dogs of this specific
+   *  cross, when we have a curated set. Empty array if no entry. */
+  mixPhotos: { url: string; caption: string }[];
 }
 
 export async function POST(req: Request) {
@@ -123,6 +127,7 @@ export async function POST(req: Request) {
       breedHero: breedB?.heroImageUrl ?? null,
       references: getBreedReferencePhotos(petB.breed),
     },
+    mixPhotos: getMixBreedPhotos(petA.breed, petB.breed),
   };
   return NextResponse.json(response);
 }

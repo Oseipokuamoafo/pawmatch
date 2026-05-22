@@ -21,6 +21,7 @@ interface GallerySide {
 interface GalleryResponse {
   parentA: GallerySide;
   parentB: GallerySide;
+  mixPhotos: { url: string; caption: string }[];
 }
 
 /**
@@ -121,6 +122,14 @@ export function OffspringProfilePanel({
       </header>
 
       {gallery && <ParentBreedGallery gallery={gallery} />}
+
+      {gallery && gallery.mixPhotos.length > 0 && (
+        <MixBreedGallery
+          mixPhotos={gallery.mixPhotos}
+          breedA={gallery.parentA.breedName}
+          breedB={gallery.parentB.breedName}
+        />
+      )}
 
       <article className="rounded-3xl border border-sand bg-surface p-6 shadow-card md:p-8">
         {streaming && text.length === 0 ? (
@@ -252,6 +261,77 @@ function SideColumn({
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Renders REAL photos of actual mix-breed dogs of this specific cross
+ * (e.g. German Shepherd × American Pit Bull Terrier). Only shown when
+ * we have a curated set for the pair — better to hide the section
+ * than to show generic stock photos.
+ */
+function MixBreedGallery({
+  mixPhotos,
+  breedA,
+  breedB,
+}: {
+  mixPhotos: { url: string; caption: string }[];
+  breedA: string;
+  breedB: string;
+}) {
+  return (
+    <section className="mb-6 rounded-3xl border-2 border-terracotta/30 bg-terracotta/[0.04] p-5 md:p-6">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <p
+            className="text-[11px] font-semibold uppercase tracking-[0.18em]"
+            style={{ color: "#C94B2A" }}
+          >
+            Real photos · typical offspring
+          </p>
+          <h3
+            className="mt-1 leading-tight text-dark"
+            style={{
+              fontFamily: "var(--font-playfair, Georgia, serif)",
+              fontWeight: 800,
+              fontSize: "1.25rem",
+            }}
+          >
+            What a {breedA} × {breedB} cross looks like
+          </h3>
+        </div>
+        <p className="max-w-md text-[12px] text-dark-muted leading-relaxed">
+          Licensed photographs of real dogs that are actual mixes of these
+          two breeds. Not generated. Not stylized. Every dog below is a
+          different individual.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {mixPhotos.slice(0, 4).map((p, i) => (
+          <figure key={`${p.url}-${i}`} className="overflow-hidden rounded-2xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={p.url}
+              alt={p.caption}
+              className="aspect-square w-full object-cover transition-transform hover:scale-[1.03]"
+              loading="lazy"
+            />
+            <figcaption className="mt-1.5 line-clamp-2 text-[10px] leading-snug text-dark-muted">
+              {p.caption}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+
+      <p className="mt-5 rounded-2xl border border-terracotta/25 bg-surface/80 px-4 py-3 text-[12px] leading-relaxed text-dark">
+        <strong>Your puppies will not look exactly like these.</strong>{" "}
+        Mendelian inheritance produces enormous variation across a single
+        litter — two puppies from the same mating can look very different
+        from each other. Treat these as the range of what&apos;s plausible,
+        not a portrait of what will happen.
+      </p>
+    </section>
   );
 }
 
