@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { streamOffspringProfile } from "@/lib/offspring-profile";
+import { checkRateLimit, POLICIES, rateLimitHeaders } from "@/lib/rate-limit";
 
 /**
  * POST /api/predict/offspring
@@ -28,6 +29,20 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limit = checkRateLimit(
+    `predict-offspring:${session.user.id}`,
+    POLICIES.AI_HEAVY,
+  );
+  if (!limit.ok) {
+    return NextResponse.json(
+      {
+        error: "Too many requests. Try again later.",
+        retryAfterSeconds: Math.ceil(limit.retryAfterMs / 1000),
+      },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
   }
 
   let body: unknown;

@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasProPlusAccess } from "@/lib/billing";
 import { summarizeHeat } from "@/lib/heat";
+import { checkRateLimit, POLICIES, rateLimitHeaders } from "@/lib/rate-limit";
 import {
   buildSystemPrompt,
   streamAssistantReply,
@@ -96,6 +97,20 @@ export async function POST(req: Request, ctx: Ctx) {
     return NextResponse.json(
       { error: "Breeding assistant is a Pro+ feature." },
       { status: 402 },
+    );
+  }
+
+  const limit = checkRateLimit(
+    `assistant:${session.user.id}`,
+    POLICIES.AI_CHAT,
+  );
+  if (!limit.ok) {
+    return NextResponse.json(
+      {
+        error: "Too many messages. Try again in a moment.",
+        retryAfterSeconds: Math.ceil(limit.retryAfterMs / 1000),
+      },
+      { status: 429, headers: rateLimitHeaders(limit) },
     );
   }
 
