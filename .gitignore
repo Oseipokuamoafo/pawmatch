@@ -33,6 +33,14 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Claude Code local agent state — per-developer, never commit
+.claude/
+
+# *.local.* scripts — one-off dev helpers, same convention as .env.local
+*.local.mjs
+*.local.js
+*.local.ts
+
 # vercel
 .vercel
 
