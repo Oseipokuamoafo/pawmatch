@@ -7,6 +7,7 @@ import {
   sendVetApplicationRejected,
 } from "@/lib/email";
 import { vetApplicationActionSchema } from "@/lib/validations/vet";
+import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
 
 type Ctx = { params: Promise<{ userId: string }> };
 
@@ -79,6 +80,21 @@ export async function PATCH(req: Request, ctx: Ctx) {
       },
       select: { id: true, role: true, vetApplicationStatus: true },
     });
+    await recordAudit({
+      actorId: session.user.id,
+      actorRole: "ADMIN",
+      action: AUDIT_ACTIONS.VET_APPLICATION_APPROVED,
+      subjectType: "User",
+      subjectId: userId,
+      metadata: {
+        previousRole: applicant.role,
+        newRole: "VET",
+        previousStatus: "PENDING",
+        newStatus: "APPROVED",
+        practiceName: applicant.vetPracticeName,
+      },
+      request: req,
+    });
     await sendVetApplicationApproved({
       to: applicant.email,
       name: applicant.name,
@@ -92,6 +108,19 @@ export async function PATCH(req: Request, ctx: Ctx) {
     where: { id: userId },
     data: { vetApplicationStatus: "REJECTED" },
     select: { id: true, role: true, vetApplicationStatus: true },
+  });
+  await recordAudit({
+    actorId: session.user.id,
+    actorRole: "ADMIN",
+    action: AUDIT_ACTIONS.VET_APPLICATION_REJECTED,
+    subjectType: "User",
+    subjectId: userId,
+    metadata: {
+      previousStatus: "PENDING",
+      newStatus: "REJECTED",
+      reasonProvided: Boolean(parsed.data.notes),
+    },
+    request: req,
   });
   await sendVetApplicationRejected({
     to: applicant.email,

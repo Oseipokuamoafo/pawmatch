@@ -502,3 +502,54 @@ model BreedingChatMessage {
   @@index([chatId])
   @@index([createdAt])
 }
+
+/**
+ * Append-only audit log for compliance-relevant events. This is the
+ * "trust as infrastructure" data layer behind the pitch — when a vet
+ * board, insurer, or partner asks "what actually happened with this
+ * record?" the answer is a query against this table.
+ *
+ * Design decisions:
+ *   - No FK to User. If a user is deleted (GDPR-style erasure), their
+ *     audit entries must persist with the actorId preserved as a plain
+ *     string. Compliance trumps referential integrity.
+ *   - `action` is a namespaced dot-separated string (e.g.
+ *     `vet.cosigned_record`, `subscription.canceled`) — keeps queries
+ *     simple without baking event types into an enum that needs a
+ *     migration for every new event.
+ *   - `metadata` is freeform JSON so each event type can carry the
+ *     fields that make sense for it without bloating the row schema.
+ *   - Indexes cover the three common access patterns: "what happened
+ *     to this record", "what did this user do", "every event of type X".
+ */
+model AuditEntry {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  /// User who triggered the event. Plain string, NOT a FK — see note above.
+  actorId     String?
+  /// Snapshot of the actor's role at event time. Captured here so role
+  /// changes don't retroactively rewrite the audit trail.
+  actorRole   Role?
+
+  /// Namespaced event type, e.g. `vet.cosigned_record`.
+  action      String
+
+  /// What the event was about. Type is a model name string for
+  /// flexibility; id is the row id at event time (may no longer exist).
+  subjectType String?
+  subjectId   String?
+
+  /// Freeform event-specific detail. Keep PHI minimal — store ids and
+  /// state transitions, not full record contents.
+  metadata    Json?
+
+  /// Source identifiers, when available. Useful for incident response.
+  ip          String?
+  userAgent   String?
+
+  @@index([subjectType, subjectId, createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}

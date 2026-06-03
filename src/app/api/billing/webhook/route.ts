@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { Prisma } from "@/generated/prisma";
 import type { SubscriptionStatus, SubscriptionPlan } from "@/generated/prisma";
+import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
 
 /**
  * Stripe webhook receiver. The single source of truth for Subscription
@@ -58,19 +59,41 @@ export async function POST(req: Request) {
       case "customer.subscription.deleted":
         await upsertSubscriptionFromStripe(
           event.data.object as Stripe.Subscription,
+          event.type,
         );
         break;
 
-      case "invoice.payment_failed":
+      case "invoice.payment_failed": {
         // Stripe will follow up with a customer.subscription.updated
         // setting status=past_due — but log immediately so we have a
         // trail tied to the invoice.
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId =
+          typeof invoice.customer === "string"
+            ? invoice.customer
+            : (invoice.customer?.id ?? null);
         console.warn(
-          `[billing/webhook] invoice.payment_failed for ${
-            (event.data.object as Stripe.Invoice).customer ?? "?"
-          }`,
+          `[billing/webhook] invoice.payment_failed for ${customerId ?? "?"}`,
         );
+        if (customerId) {
+          const user = await prisma.user.findUnique({
+            where: { stripeCustomerId: customerId },
+            select: { id: true },
+          });
+          await recordAudit({
+            actorId: null,
+            action: AUDIT_ACTIONS.SUBSCRIPTION_PAYMENT_FAILED,
+            subjectType: user ? "User" : "StripeCustomer",
+            subjectId: user?.id ?? customerId,
+            metadata: {
+              invoiceId: invoice.id,
+              amountDue: invoice.amount_due,
+              attemptCount: invoice.attempt_count,
+            },
+          });
+        }
         break;
+      }
 
       default:
         // Unhandled types are fine — Stripe sends many we don't care about
@@ -96,6 +119,7 @@ export async function POST(req: Request) {
 
 async function upsertSubscriptionFromStripe(
   sub: Stripe.Subscription,
+  eventType: string,
 ): Promise<void> {
   const customerId =
     typeof sub.customer === "string" ? sub.customer : sub.customer.id;
@@ -166,6 +190,28 @@ async function upsertSubscriptionFromStripe(
       currentPeriodEnd: new Date(periodEnd * 1000),
       cancelAtPeriodEnd: sub.cancel_at_period_end,
       canceledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000) : null,
+    },
+  });
+
+  // Map Stripe event type → our audit action.
+  const action =
+    eventType === "customer.subscription.created"
+      ? AUDIT_ACTIONS.SUBSCRIPTION_CREATED
+      : eventType === "customer.subscription.deleted" || sub.status === "canceled"
+        ? AUDIT_ACTIONS.SUBSCRIPTION_CANCELED
+        : AUDIT_ACTIONS.SUBSCRIPTION_UPDATED;
+
+  await recordAudit({
+    actorId: null,
+    action,
+    subjectType: "Subscription",
+    subjectId: sub.id,
+    metadata: {
+      userId: user.id,
+      status,
+      plan,
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      stripeEventType: eventType,
     },
   });
 

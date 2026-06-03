@@ -7,6 +7,7 @@ import {
   sendVetCosignSigned,
 } from "@/lib/email";
 import { cosignActionSchema } from "@/lib/validations/vet";
+import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
 
 type Ctx = { params: Promise<{ recordId: string }> };
 
@@ -90,6 +91,21 @@ export async function POST(req: Request, ctx: Ctx) {
       },
     });
 
+    await recordAudit({
+      actorId: session.user.id,
+      actorRole: "VET",
+      action: AUDIT_ACTIONS.VET_COSIGNED_RECORD,
+      subjectType: "PetHealth",
+      subjectId: recordId,
+      metadata: {
+        petId: record.pet.id,
+        ownerId: record.pet.owner?.id ?? null,
+        recordType: record.type,
+        practiceName: me?.vetPracticeName ?? null,
+      },
+      request: req,
+    });
+
     if (record.pet.owner?.email) {
       await sendVetCosignSigned({
         to: record.pet.owner.email,
@@ -108,6 +124,21 @@ export async function POST(req: Request, ctx: Ctx) {
   const updated = await prisma.petHealth.update({
     where: { id: recordId },
     data: { requestedVetId: null, requestedAt: null },
+  });
+
+  await recordAudit({
+    actorId: session.user.id,
+    actorRole: "VET",
+    action: AUDIT_ACTIONS.VET_DECLINED_COSIGN,
+    subjectType: "PetHealth",
+    subjectId: recordId,
+    metadata: {
+      petId: record.pet.id,
+      ownerId: record.pet.owner?.id ?? null,
+      recordType: record.type,
+      reasonProvided: Boolean(parsed.data.notes),
+    },
+    request: req,
   });
 
   if (record.pet.owner?.email) {

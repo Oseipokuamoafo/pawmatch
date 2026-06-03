@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma";
 
 import { prisma } from "@/lib/prisma";
 import { sendVetApplicationApproved } from "@/lib/email";
+import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
 import {
   screenVetApplication,
   shouldAutoApprove,
@@ -80,6 +81,19 @@ export async function runScreenAndPersist(
     },
   });
 
+  // System-initiated event — no actor.
+  await recordAudit({
+    actorId: null,
+    action: AUDIT_ACTIONS.VET_APPLICATION_AI_SCREENED,
+    subjectType: "User",
+    subjectId: userId,
+    metadata: {
+      verdictStatus: verdict.status,
+      confidence: verdict.confidence,
+      evidenceCount: verdict.evidence.length,
+    },
+  });
+
   // Auto-approve when the verdict crosses the bar AND the user is still
   // PENDING (an admin may have already acted manually).
   if (shouldAutoApprove(verdict)) {
@@ -101,6 +115,17 @@ export async function runScreenAndPersist(
           vetApplicationStatus: "APPROVED",
           vetApprovedAt: new Date(),
           aiAutoApprovedAt: new Date(),
+        },
+      });
+      await recordAudit({
+        actorId: null,
+        action: AUDIT_ACTIONS.VET_APPLICATION_AUTO_APPROVED,
+        subjectType: "User",
+        subjectId: userId,
+        metadata: {
+          confidence: verdict.confidence,
+          verdictStatus: verdict.status,
+          practiceName: current.vetPracticeName,
         },
       });
       await sendVetApplicationApproved({
