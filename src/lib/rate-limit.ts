@@ -52,10 +52,14 @@ export interface RateLimitResult {
  * better than no limit; revisit once we have real production traffic.
  */
 export const POLICIES = {
-  /** Expensive Claude calls — adaptive thinking, 1500+ output tokens. */
+  /**
+   * Offspring profile + similar one-shot AI predictions. Haiku 4.5 is
+   * cheap enough that we can be generous — the only reason to cap is
+   * scripted abuse, not cost control.
+   */
   AI_HEAVY: {
-    capacity: 5,
-    refill: { tokens: 10, perMs: 60 * 60 * 1000 }, // 10 / hour
+    capacity: 15,
+    refill: { tokens: 60, perMs: 60 * 60 * 1000 }, // 60 / hour
   },
   /** Interactive chat — higher allowance because turns are short. */
   AI_CHAT: {

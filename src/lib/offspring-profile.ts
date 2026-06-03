@@ -24,8 +24,13 @@ import type { Breed, Pet, PetTrait } from "@/generated/prisma";
  * without dna locus data → probabilistic), never invent traits.
  */
 
+// Default to Haiku 4.5 — the offspring task is breed-knowledge pattern
+// matching, not deep reasoning, and Haiku produces text immediately
+// (Sonnet/Opus with adaptive thinking sit silent for 25-30s before
+// streaming the first token, which feels broken in the UI). Swap to
+// claude-sonnet-4-6 via OFFSPRING_PROFILE_MODEL if quality drops.
 const DEFAULT_MODEL =
-  process.env.OFFSPRING_PROFILE_MODEL ?? "claude-sonnet-4-6";
+  process.env.OFFSPRING_PROFILE_MODEL ?? "claude-haiku-4-5";
 const GEMINI_MODEL =
   process.env.OFFSPRING_PROFILE_GEMINI_MODEL ?? "gemini-2.5-flash";
 export const MAX_PROFILE_TOKENS = 1800;
@@ -180,10 +185,12 @@ async function streamWithClaude(
   const client = new Anthropic();
   const userMessage = buildOffspringUserPrompt(a, b);
 
+  // Adaptive thinking is a Sonnet/Opus feature and is what made the
+  // previous setup feel frozen (25-30s of silent thinking). Haiku
+  // produces text immediately — no thinking config needed.
   const stream = client.messages.stream({
     model: DEFAULT_MODEL,
     max_tokens: MAX_PROFILE_TOKENS,
-    thinking: { type: "adaptive" },
     system: [
       {
         type: "text",

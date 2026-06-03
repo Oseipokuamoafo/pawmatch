@@ -133,10 +133,7 @@ export function OffspringProfilePanel({
 
       <article className="rounded-3xl border border-sand bg-surface p-6 shadow-card md:p-8">
         {streaming && text.length === 0 ? (
-          <div className="flex items-center gap-2 text-sm text-dark-muted">
-            <Dots />
-            <span>Analyzing {petAName} and {petBName}&apos;s genetic profiles…</span>
-          </div>
+          <ThinkingState petAName={petAName} petBName={petBName} />
         ) : error ? (
           <p className="text-sm text-dark-muted">
             We couldn&apos;t generate the prediction right now. {error}
@@ -336,6 +333,68 @@ function MixBreedGallery({
 }
 
 /* ─── Subcomponents ──────────────────────────────────────────────────── */
+
+/**
+ * Multi-stage "thinking" indicator shown while we wait for the first
+ * AI text chunk. The static dots-and-one-line approach felt frozen
+ * during a 5-10s wait; the rotating stages give the user a sense of
+ * progress without lying about what's actually happening on the
+ * server (the model produces all the text in one streaming call —
+ * the "stages" are presentational, but they're truthful at a high
+ * level about what kind of analysis the prompt asks for).
+ */
+function ThinkingState({
+  petAName,
+  petBName,
+}: {
+  petAName: string;
+  petBName: string;
+}) {
+  const stages = [
+    `Reading ${petAName} and ${petBName}'s DNA panels…`,
+    "Cross-referencing breed traits and recessive markers…",
+    "Calculating Mendelian probabilities…",
+    "Drafting predictions for coat, size, and temperament…",
+  ];
+  const [stage, setStage] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setStage((s) => Math.min(s + 1, stages.length - 1));
+    }, 1500);
+    return () => window.clearInterval(interval);
+  }, [stages.length]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-sm text-dark">
+        <Dots />
+        <span className="font-medium">{stages[stage]}</span>
+      </div>
+      <ul className="ml-1 mt-2 space-y-1.5 text-[12px] text-dark-muted">
+        {stages.map((s, i) => (
+          <li
+            key={i}
+            className={`flex items-center gap-2 transition-opacity ${
+              i <= stage ? "opacity-100" : "opacity-30"
+            }`}
+          >
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                i < stage
+                  ? "bg-sage"
+                  : i === stage
+                    ? "animate-pulse bg-terracotta"
+                    : "bg-sand"
+              }`}
+            />
+            <span>{s}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function Dots() {
   return (
